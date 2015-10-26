@@ -1,3 +1,4 @@
+import _root_.play.core.PlayVersion
 import sbt.Keys._
 import sbt._
 import uk.gov.hmrc.SbtAutoBuildPlugin
@@ -11,33 +12,41 @@ object HmrcBuild extends Build {
 
   val appName = "reactive-circuit-breaker"
 
-  lazy val ReactiveCircuitBreaker = Project(appName, file("."))
+  lazy val bulkEntityStreaming = Project(appName, file("."))
     .enablePlugins(SbtAutoBuildPlugin, SbtGitVersioning)
     .settings(
-      targetJvm := "jvm-1.7",
-      libraryDependencies ++= Seq(
-        Test.scalaTest,
-        Test.pegdown
-      ),
-      Developers()
+      scalaVersion := "2.11.7",
+      libraryDependencies ++= AppDependencies(),
+      crossScalaVersions := Seq("2.11.7"),
+      resolvers := Seq(
+        Resolver.bintrayRepo("hmrc", "releases"),
+        Resolver.typesafeRepo("releases")
+      )
     )
 }
 
-private object BuildDependencies {
+private object AppDependencies {
 
-  object Compile {
+  import play.core.PlayVersion
+
+  val compile = Seq(
+    "com.typesafe.play" %% "play" % PlayVersion.current
+  )
+
+  trait TestDependencies {
+    lazy val scope: String = "test"
+    lazy val test: Seq[ModuleID] = ???
   }
 
-  sealed abstract class Test(scope: String) {
-    val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % scope
-    val pegdown = "org.pegdown" % "pegdown" % "1.5.0" % scope
+  object Test {
+    def apply() = new TestDependencies {
+      override lazy val test = Seq(
+        "org.scalatest" %% "scalatest" % "2.2.4" % scope,
+        "org.pegdown" % "pegdown" % "1.5.0" % scope,
+        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope
+      )
+    }.test
   }
 
-  object Test extends Test("test")
-
-}
-
-object Developers {
-
-  def apply() = developers := List[Developer]()
+  def apply() = compile ++ Test()
 }
