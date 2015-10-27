@@ -16,15 +16,17 @@
 
 package uk.gov.hmrc.circuitbreaker
 
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.concurrent.Future
 
 
-class CircuitBreakerSpec extends WordSpecLike with Matchers {
+class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
-  private def successfulCall :Future[Boolean] = Future.successful(true)
-  private def failedCall :Future[Boolean] = throw new RuntimeException("some exception")
+  private def successfulCall: Future[Boolean] = Future.successful(true)
+
+  private def failedCall: Future[Boolean] = throw new RuntimeException("some exception")
 
   val fiveMinutes: Long = 5 * 60 * 1000
   val fourCalls: Int = 4
@@ -39,34 +41,54 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers {
 
     "remain healthy after a successful call" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      cb.invoke(successfulCall)
-      cb.currentState.name shouldBe "HEALTHY"
+      whenReady(cb.invoke(successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "HEALTHY"
+      }
     }
 
-    "remain healthy after a failed call" in  {
+    "remain healthy after a failed call" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      intercept[Exception]{cb.invoke(failedCall)}
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
       cb.currentState.name shouldBe "HEALTHY"
       cb.isServiceTurbulent shouldBe true
     }
 
-    "state change to unhealthy from healthy after a succession of failed calls that exceed threshold" in  {
+    "state change to unhealthy from healthy after a succession of failed calls that exceed threshold" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      intercept[Exception]{cb.invoke(failedCall)}
-      intercept[Exception]{cb.invoke(failedCall)}
-      intercept[Exception]{cb.invoke(failedCall)}
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
       cb.isServiceTurbulent shouldBe true
-      intercept[Exception]{cb.invoke(failedCall)}
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
       cb.currentState.name shouldBe "UNHEALTHY"
       cb.isServiceTurbulent shouldBe false
     }
 
-    "remain healthy after a succession of failed calls that exceed the failed call threshold count but occur after the failed count expiry time" in  {
+    "remain healthy after a succession of failed calls that exceed the failed call threshold count but occur after the failed count expiry time" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, -10000)
-      intercept[Exception]{cb.invoke(failedCall)}
-      intercept[Exception]{cb.invoke(failedCall)}
-      intercept[Exception]{cb.invoke(failedCall)}
-      intercept[Exception]{cb.invoke(failedCall)}
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
       cb.currentState.name shouldBe "HEALTHY"
       cb.isServiceTurbulent shouldBe false
 
@@ -74,77 +96,135 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers {
       cb.registerFailedCall shouldBe 1
     }
 
-    "state change to unhealthy from healthy after a succession of successful and failed calls that exceed threshold" in  {
+    "state change to unhealthy from healthy after a succession of successful and failed calls that exceed threshold" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      intercept[Exception]{cb.invoke(failedCall)}
+
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
       cb.isServiceTurbulent shouldBe true
-      intercept[Exception]{cb.invoke(failedCall)}
-      cb.invoke[Boolean](successfulCall)
-      intercept[Exception]{cb.invoke(failedCall)}
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "HEALTHY"
-      cb.isServiceTurbulent shouldBe true
-      intercept[Exception]{cb.invoke(failedCall)}
+
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "HEALTHY"
+      }
+
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "HEALTHY"
+          cb.isServiceTurbulent shouldBe true
+      }
+
+      intercept[Exception] {
+        cb.invoke(failedCall)
+      }
       cb.currentState.name shouldBe "UNHEALTHY"
       cb.isServiceTurbulent shouldBe false
     }
 
-    "remain unhealthy and return a circuit breaker exception during the time threshold period" in  {
+    "remain unhealthy and return a circuit breaker exception during the time threshold period" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
       cb.setUnhealthyState()
-      intercept[UnhealthyServiceException]{cb.invoke[Boolean](successfulCall)}
+      intercept[UnhealthyServiceException] {
+        cb.invoke[Boolean](successfulCall)
+      }
       cb.currentState.name shouldBe "UNHEALTHY"
       cb.isServiceTurbulent shouldBe false
     }
 
-    "state change to trial from unhealthy after a successful call executed after the time threshold period" in  {
+    "state change to trial from unhealthy after a successful call executed after the time threshold period" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, -10000, fiveMinutes)
       cb.setUnhealthyState()
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "TRIAL"
-      cb.isServiceTurbulent shouldBe false
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
+          cb.isServiceTurbulent shouldBe false
+      }
     }
 
-    "state change to unhealthy from trail after a failed call" in  {
+    "state change to unhealthy from trail after a failed call" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
       cb.setTrialState()
       cb.isServiceTurbulent shouldBe false
-      intercept[Exception]{cb.invoke[Boolean](failedCall)}
+      intercept[Exception] {
+        cb.invoke[Boolean](failedCall)
+      }
       cb.currentState.name shouldBe "UNHEALTHY"
     }
 
-    "remain trial state after a single successful call" in  {
+    "remain trial state after a single successful call" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
       cb.setTrialState()
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "TRIAL"
-      cb.isServiceTurbulent shouldBe false
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
+          cb.isServiceTurbulent shouldBe false
+      }
     }
 
-    "state change from trial to healthy after the number successful calls equals the threshold amount" in  {
+    "state change from trial to healthy after the number successful calls equals the threshold amount" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
       cb.setTrialState()
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "TRIAL"
-      cb.invoke[Boolean](successfulCall)
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "TRIAL"
-      cb.invoke[Boolean](successfulCall)
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "HEALTHY"
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "HEALTHY"
+      }
     }
 
-    "state change from trial to unhealthy after fewer than threshold series of successful calls and a single failed call" in  {
+    "state change from trial to unhealthy after fewer than threshold series of successful calls and a single failed call" in {
       val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
       cb.setTrialState()
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "TRIAL"
-      cb.invoke[Boolean](successfulCall)
-      cb.invoke[Boolean](successfulCall)
-      cb.currentState.name shouldBe "TRIAL"
-      intercept[Exception]{cb.invoke[Boolean](failedCall)}
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+      }
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
+      }
+
+      intercept[Exception] {
+        cb.invoke[Boolean](failedCall)
+      }
       cb.currentState.name shouldBe "UNHEALTHY"
-      intercept[UnhealthyServiceException]{cb.invoke[Boolean](successfulCall)}
+
+      intercept[UnhealthyServiceException] {
+        cb.invoke[Boolean](successfulCall)
+      }
     }
   }
 }
