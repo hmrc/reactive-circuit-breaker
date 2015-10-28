@@ -16,17 +16,13 @@
 
 package uk.gov.hmrc.circuitbreaker
 
-import org.scalatest.{WordSpecLike, Matchers}
+import org.scalatest.{Matchers, WordSpecLike}
 import org.specs2.mock.MockitoMocker
 import org.specs2.mock.mockito.CalledMatchers
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class CircuitBreakerStatesSpec extends WordSpecLike with Matchers with MockitoMocker with CalledMatchers {
-
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
 
 "Healthy State" should {
     "remain healthy when the count of failed calls has not exceeded the threshold" in {
@@ -67,6 +63,12 @@ import org.scalatest.WordSpecLike
       no(mockCBM).setUnhealthyState()
       no(mockCBM).setTrialState()
     }
+
+    "return a not tripped state" in {
+      val mockCBM = mock[CircuitBreakerModel]
+      val underTest = new Healthy(mockCBM)
+      underTest.isCircuitBreakerTripped shouldBe false
+    }
   }
 
   "Trial State" should {
@@ -105,6 +107,12 @@ import org.scalatest.WordSpecLike
       one(mockCBM).setHealthyState()
       no(mockCBM).setUnhealthyState()
       no(mockCBM).setTrialState()
+    }
+
+    "return a not tripped state" in {
+      val mockCBM = mock[CircuitBreakerModel]
+      val underTest = new Trial(mockCBM)
+      underTest.isCircuitBreakerTripped shouldBe false
     }
   }
 
@@ -145,6 +153,22 @@ import org.scalatest.WordSpecLike
       one(mockCBM).setTrialState()
       no(mockCBM).setUnhealthyState()
       no(mockCBM).setHealthyState()
+    }
+
+    "return a tripped state when the wait time has not elapsed" in {
+      val mockCBM = mock[CircuitBreakerModel]
+      when(mockCBM.hasWaitTimeElapsed).thenReturn(false)
+
+      val underTest = new Unhealthy(mockCBM)
+      underTest.isCircuitBreakerTripped shouldBe true
+    }
+
+    "return a not tripped state when the wait time has elapsed" in {
+      val mockCBM = mock[CircuitBreakerModel]
+      when(mockCBM.hasWaitTimeElapsed).thenReturn(true)
+
+      val underTest = new Unhealthy(mockCBM)
+      underTest.isCircuitBreakerTripped shouldBe false
     }
   }
 }
