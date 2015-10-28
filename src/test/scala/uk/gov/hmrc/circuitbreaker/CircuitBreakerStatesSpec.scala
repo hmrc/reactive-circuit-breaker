@@ -63,12 +63,6 @@ class CircuitBreakerStatesSpec extends WordSpecLike with Matchers with MockitoMo
       no(mockCBM).setUnhealthyState()
       no(mockCBM).setTrialState()
     }
-
-    "return a not tripped state" in {
-      val mockCBM = mock[CircuitBreakerModel]
-      val underTest = new Healthy(mockCBM)
-      underTest.isCircuitBreakerTripped shouldBe false
-    }
   }
 
   "Trial State" should {
@@ -107,12 +101,6 @@ class CircuitBreakerStatesSpec extends WordSpecLike with Matchers with MockitoMo
       one(mockCBM).setHealthyState()
       no(mockCBM).setUnhealthyState()
       no(mockCBM).setTrialState()
-    }
-
-    "return a not tripped state" in {
-      val mockCBM = mock[CircuitBreakerModel]
-      val underTest = new Trial(mockCBM)
-      underTest.isCircuitBreakerTripped shouldBe false
     }
   }
 
@@ -153,22 +141,6 @@ class CircuitBreakerStatesSpec extends WordSpecLike with Matchers with MockitoMo
       one(mockCBM).setTrialState()
       no(mockCBM).setUnhealthyState()
       no(mockCBM).setHealthyState()
-    }
-
-    "return a tripped state when the wait time has not elapsed" in {
-      val mockCBM = mock[CircuitBreakerModel]
-      when(mockCBM.hasWaitTimeElapsed).thenReturn(false)
-
-      val underTest = new Unhealthy(mockCBM)
-      underTest.isCircuitBreakerTripped shouldBe true
-    }
-
-    "return a not tripped state when the wait time has elapsed" in {
-      val mockCBM = mock[CircuitBreakerModel]
-      when(mockCBM.hasWaitTimeElapsed).thenReturn(true)
-
-      val underTest = new Unhealthy(mockCBM)
-      underTest.isCircuitBreakerTripped shouldBe false
     }
   }
 }

@@ -21,7 +21,6 @@ import scala.concurrent.Future
 private[circuitbreaker] abstract class StateProcessor {
   def processCallResult(wasCallSuccessful: Boolean)
   def stateAwareInvoke[T](f: => Future[T]): Future[T] = f
-  def isCircuitBreakerTripped: Boolean
   def name: String
 }
 
@@ -29,8 +28,6 @@ private[circuitbreaker] class Healthy(cb: CircuitBreakerModel) extends StateProc
   def processCallResult(wasCallSuccessful: Boolean) = {
     if (!wasCallSuccessful && cb.registerFailedCall >= cb.numberOfCallsToChangeState && cb.isServiceTurbulent) cb.setUnhealthyState()
   }
-
-  def isCircuitBreakerTripped = false
 
   override def name: String = "HEALTHY"
 }
@@ -43,8 +40,6 @@ private[circuitbreaker] class Trial(cb: CircuitBreakerModel) extends StateProces
       case false => cb.setUnhealthyState()
     }
   }
-
-  def isCircuitBreakerTripped = false
 
   override def name: String = "TRIAL"
 }
@@ -62,8 +57,6 @@ private[circuitbreaker] class Unhealthy(cb: CircuitBreakerModel) extends StatePr
       throw new UnhealthyServiceException(cb.name)
     }
   }
-
-  def isCircuitBreakerTripped = !cb.hasWaitTimeElapsed
 
   override def name: String = "UNHEALTHY"
 }
