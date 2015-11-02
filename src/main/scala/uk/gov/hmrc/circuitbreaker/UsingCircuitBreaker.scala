@@ -35,6 +35,10 @@ trait UsingCircuitBreaker {
   def withCircuitBreaker[T](f: => Future[T]): Future[T] = {
     Repository.circuitBreaker(circuitBreakerName).invoke(f)
   }
+
+  def canServiceBeInvoked = {
+    !Repository.circuitBreaker(circuitBreakerName).currentState.isCircuitBreakerTripped
+  }
 }
 
 private[circuitbreaker] trait CircuitBreakerModel {
