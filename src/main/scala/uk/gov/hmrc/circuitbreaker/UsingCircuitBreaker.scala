@@ -18,9 +18,7 @@ package uk.gov.hmrc.circuitbreaker
 
 import java.lang.System._
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicReference}
-
 import play.api.Logger
-
 import scala.concurrent.Future
 
 trait UsingCircuitBreaker {
