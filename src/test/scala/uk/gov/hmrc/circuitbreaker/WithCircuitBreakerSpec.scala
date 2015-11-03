@@ -73,5 +73,30 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
 
       Repository.circuitBreaker(circuitBreakerName).currentState.name shouldBe "UNHEALTHY"
     }
+
+    "return a false canServiceBeInvoked when in an unhealthy state" in new UsingCircuitBreaker {
+      lazy override val circuitBreakerName = "test_3"
+      lazy override val numberOfCallsToTriggerStateChange: Option[Int] = Some(1)
+      lazy override val unhealthyServiceUnavailableDuration: Option[Long] = Some(20)
+      lazy override val turbulencePeriodDuration: Option[Long] = None
+
+      intercept[Exception] {
+        withCircuitBreaker[Boolean](throwException)
+      }
+
+      Repository.circuitBreaker(circuitBreakerName).currentState.name shouldBe "UNHEALTHY"
+      canServiceBeInvoked shouldBe false
+
+    }
+
+    "return a true canServiceBeInvoked when in a healthy state" in new UsingCircuitBreaker {
+      lazy override val circuitBreakerName = "test_4"
+      lazy override val numberOfCallsToTriggerStateChange: Option[Int] = None
+      lazy override val unhealthyServiceUnavailableDuration: Option[Long] = None
+      lazy override val turbulencePeriodDuration: Option[Long] = None
+
+      Repository.circuitBreaker(circuitBreakerName).currentState.name shouldBe "HEALTHY"
+      canServiceBeInvoked shouldBe true
+    }
   }
 }

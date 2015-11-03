@@ -27,6 +27,7 @@ trait UsingCircuitBreaker {
   val numberOfCallsToTriggerStateChange: Option[Int]
   val unhealthyServiceUnavailableDuration: Option[Long]
   val turbulencePeriodDuration: Option[Long]
+  def canServiceBeInvoked: Boolean = !Repository.circuitBreaker(circuitBreakerName).currentState.isCircuitBreakerTripped
 
   Repository.addCircuitBreaker(circuitBreakerName, numberOfCallsToTriggerStateChange, unhealthyServiceUnavailableDuration, turbulencePeriodDuration)
 
