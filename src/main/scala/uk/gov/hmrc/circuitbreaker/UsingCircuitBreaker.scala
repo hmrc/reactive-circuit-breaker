@@ -23,17 +23,19 @@ import scala.concurrent.Future
 
 trait UsingCircuitBreaker {
 
-  val circuitBreakerName: String
-  val numberOfCallsToTriggerStateChange: Option[Int]
-  val unhealthyServiceUnavailableDuration: Option[Long]
-  val turbulencePeriodDuration: Option[Long]
+  def circuitBreakerName: String
+  def numberOfCallsToTriggerStateChange: Option[Int]
+  def unhealthyServiceUnavailableDuration: Option[Long]
+  def turbulencePeriodDuration: Option[Long]
   def canServiceBeInvoked: Boolean = !Repository.circuitBreaker(circuitBreakerName).currentState.isCircuitBreakerTripped
-
-  Repository.addCircuitBreaker(circuitBreakerName, numberOfCallsToTriggerStateChange, unhealthyServiceUnavailableDuration, turbulencePeriodDuration)
-
+  def init(circuitBreakerName: String) = {
+       Repository.addCircuitBreaker(circuitBreakerName, numberOfCallsToTriggerStateChange, unhealthyServiceUnavailableDuration, turbulencePeriodDuration)
+  }
   def withCircuitBreaker[T](f: => Future[T]): Future[T] = {
     Repository.circuitBreaker(circuitBreakerName).invoke(f)
   }
+
+  init(circuitBreakerName)
 }
 
 private[circuitbreaker] trait CircuitBreakerModel {
