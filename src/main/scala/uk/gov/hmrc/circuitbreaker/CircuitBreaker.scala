@@ -70,6 +70,8 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   def name: String = config.serviceName
   
   def currentState: StateProcessor = synchronized { state }
+  
+  def isServiceAvailable = currentState != Unavailable
 
   private var state: StateProcessor = initialState
 

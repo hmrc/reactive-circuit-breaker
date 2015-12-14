@@ -55,12 +55,14 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
       circuitBreaker.currentState.name shouldBe "UNSTABLE"
+      isServiceAvailable shouldBe true
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
       circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
+      isServiceAvailable shouldBe false
 
-      withCircuitBreaker[Boolean](throwException).failed.futureValue.getMessage shouldBe "test_2"
+      withCircuitBreaker[Boolean](throwException).failed.futureValue shouldBe an[UnhealthyServiceException]
 
       circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
     }
