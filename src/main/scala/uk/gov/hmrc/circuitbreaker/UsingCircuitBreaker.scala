@@ -46,12 +46,20 @@ trait UsingCircuitBreaker {
    */
   protected def breakOnExeption (t: Throwable): Boolean
   
+  /** Indicates whether the service is available. Returns `false` if the service
+   *  is disabled due to accumulating too many failures in the configured time
+   *  frame. Note that due to the asynchronous nature of the circuit breaker,
+   *  you can still get an `UnhealthyServiceException` after this method returned
+   *  `true` as the state might change any time.
+   */
+  protected def isServiceAvailable = circuitBreaker.isServiceAvailable
+  
   /** The `CircuitBreaker` instance used by this trait.
    */
   protected lazy val circuitBreaker = new CircuitBreaker(circuitBreakerConfig, breakOnExeption)
 
   /** Protects the specified future from being evaluated in case the service
-   *  is disabled due to too accumulating too many failures in the configured time
+   *  is disabled due to accumulating too many failures in the configured time
    *  frame. If the service is disabled, the future will fail with a `UnhealthyServiceException`,
    *  if it is enabled, it will succeed or fail with whatever result the original future produces.
    */
