@@ -16,114 +16,45 @@
 
 package uk.gov.hmrc.circuitbreaker
 
-import java.lang.System._
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicReference}
-import play.api.Logger
 import scala.concurrent.Future
 
+/** Trait to be mixed in to services or connectors that wish to
+ *  protect their outgoing calls from wasting unsuccessful invocations
+ *  in periods where the service seems to be unavailable.
+ */
 trait UsingCircuitBreaker {
 
-  def circuitBreakerName: String
-  def numberOfCallsToTriggerStateChange: Option[Int]
-  def unhealthyServiceUnavailableDuration: Option[Long]
-  def turbulencePeriodDuration: Option[Long]
-  def canServiceBeInvoked: Boolean = !Repository.circuitBreaker(circuitBreakerName).currentState.isCircuitBreakerTripped
-  def init(circuitBreakerName: String) = {
-       Repository.addCircuitBreaker(circuitBreakerName, numberOfCallsToTriggerStateChange, unhealthyServiceUnavailableDuration, turbulencePeriodDuration)
-  }
-  def withCircuitBreaker[T](f: => Future[T]): Future[T] = {
-    Repository.circuitBreaker(circuitBreakerName).invoke(f)
-  }
+  /** The configuration for the circuit breaker:
+   *  
+   * - `serviceName` - the name of the service 
+   * - `numberOfCallsToTriggerStateChange` - the number of failed calls that
+   *   need to accumulate within `unstablePeriodDuration` for the service to get
+   *   disabled, as well as the number of successful calls that are needed to 
+   *   get a service back from the disabled state to normal. 
+   * - `unavailablePeriodDuration` - the time in seconds that a service should
+   *   be disabled in case it accumulated more than the configured maximum number
+   *   of failures
+   * - `unstablePeriodDuration` - the time in seconds that failure counts are
+   *   accumulated. When the period ends without reaching the limit, the counter
+   *   switches back to 0.
+   */
+  protected def circuitBreakerConfig: CircuitBreakerConfig
+  
+  /** Predicate that defines the exceptions that should be treated as a failure.
+   *  In most cases only 5xx status responses should be treated as a server-side
+   *  issue.
+   */
+  protected def breakOnExeption (t: Throwable): Boolean
+  
+  /** The `CircuitBreaker` instance used by this trait.
+   */
+  protected lazy val circuitBreaker = new CircuitBreaker(circuitBreakerConfig, breakOnExeption)
 
-  init(circuitBreakerName)
-}
+  /** Protects the specified future from being evaluated in case the service
+   *  is disabled due to too accumulating too many failures in the configured time
+   *  frame. If the service is disabled, the future will fail with a `UnhealthyServiceException`,
+   *  if it is enabled, it will succeed or fail with whatever result the original future produces.
+   */
+  protected def withCircuitBreaker[T](f: => Future[T]): Future[T] = circuitBreaker.invoke(f)
 
-private[circuitbreaker] trait CircuitBreakerModel {
-  def setUnhealthyState()
-  def setTrialState()
-  def setHealthyState()
-
-  def registerFailedCall: Int
-  def registerSuccessfulTrialCall: Int
-
-  def currentState: StateProcessor
-  def isServiceTurbulent: Boolean
-
-  def hasWaitTimeElapsed: Boolean
-
-  def numberOfCallsToChangeState: Int
-  def name: String
-}
-
-private[circuitbreaker] case class CircuitBreaker(serviceName: String, numberOfCallsToTriggerStateChange: Int, unhealthyServiceUnavailableDuration: Long,
-                                                  turbulencePeriodDuration: Long) extends CircuitBreakerModel with CircuitBreakerExecutor {
-
-  Logger.info(s"Circuit Breaker [$name] instance created with numberOfCallsToTriggerStateChange [$numberOfCallsToTriggerStateChange] unhealthyServiceUnavailableDuration [$unhealthyServiceUnavailableDuration] turbulencePeriodDuration [$turbulencePeriodDuration]")
-
-  def numberOfCallsToChangeState: Int = numberOfCallsToTriggerStateChange
-
-  private val _trippedAt = new AtomicLong
-  private val _turbulenceStartedAt = new AtomicLong
-
-  private val _state = new AtomicReference[StateProcessor]
-
-  private val _failedCallCount = new AtomicInteger(0)
-  private val _successfulTrialCall = new AtomicInteger(0)
-
-  setHealthyState()
-
-  def name: String = serviceName
-
-  def registerFailedCall: Int = {
-    // Record the start of a turbulent period or the expiry of an existing one
-    if (_failedCallCount.get == 0) {
-      declareStartOfTurbulencePeriod()
-    } else if (currentTimeMillis - _turbulenceStartedAt.get >= turbulencePeriodDuration) {
-      declareStartOfTurbulencePeriod()
-      resetFailedCallCount()
-    }
-
-    _failedCallCount.incrementAndGet
-  }
-
-  private def resetFailedCallCount() = _failedCallCount.set(0)
-
-  private def resetTurbulenceStartedAt() = _turbulenceStartedAt.set(0)
-
-  private def declareStartOfTurbulencePeriod() = _turbulenceStartedAt.set(currentTimeMillis)
-
-  def registerSuccessfulTrialCall: Int = _successfulTrialCall.incrementAndGet
-
-  private def resetSuccessfulTrialCall() = _successfulTrialCall.set(0)
-
-  def currentState: StateProcessor = _state.get
-
-  def hasWaitTimeElapsed: Boolean = {
-    val elapsed = currentTimeMillis - _trippedAt.get
-    if (elapsed <= unhealthyServiceUnavailableDuration) false else true
-  }
-
-  def setUnhealthyState() = {
-    _state.set(new Unhealthy(this))
-    _trippedAt.set(currentTimeMillis)
-    resetTurbulenceStartedAt()
-    Logger.debug(s"Service [$serviceName] is in state [${_state.get().name}]")
-  }
-
-  def setTrialState() = {
-    _state.set(new Trial(this))
-    resetSuccessfulTrialCall()
-    Logger.debug(s"Service [$serviceName] is in state [${_state.get().name}]")
-  }
-
-  def setHealthyState() = {
-    _state.set(new Healthy(this))
-    resetFailedCallCount()
-    resetSuccessfulTrialCall()
-    Logger.debug(s"Service [$serviceName] is in state [${_state.get().name}]")
-  }
-
-  def isServiceTurbulent: Boolean = {
-    if (currentTimeMillis - _turbulenceStartedAt.get <= turbulencePeriodDuration) true else false
-  }
 }

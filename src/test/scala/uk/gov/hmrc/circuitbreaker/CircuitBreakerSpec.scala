@@ -26,155 +26,153 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
   private def successfulCall: Future[Boolean] = Future.successful(true)
 
-  private def failedCall: Future[Boolean] = throw new RuntimeException("some exception")
+  private def failedCall: Future[Boolean] = Future.failed(new RuntimeException("some exception"))
+  private def expectedFailure: Future[Boolean] = Future.failed(new ExpectedException)
 
-  val fiveMinutes: Long = 5 * 60 * 1000
+  val fiveMinutes: Int = 5 * 60 * 1000
   val fourCalls: Int = 4
   val serviceName = "SomeServiceName"
+  
+  class ExpectedException extends RuntimeException("ExpectedException")
+  
+  val defaultConfig = CircuitBreakerConfig(serviceName, fourCalls, fiveMinutes, fiveMinutes)
+  val defaultExceptions: Throwable => Boolean = (_ => true)
+  
+  val filteredExceptions: Throwable => Boolean = {
+    case _: ExpectedException => false
+    case _ => true
+  }
 
   "CircuitBreaker invoke" should {
 
     "starts up in a healthy state" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
       cb.currentState.name shouldBe "HEALTHY"
     }
 
     "remain healthy after a successful call" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
       whenReady(cb.invoke(successfulCall)) {
         result =>
           cb.currentState.name shouldBe "HEALTHY"
       }
     }
 
-    "remain healthy after a failed call" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      cb.currentState.name shouldBe "HEALTHY"
-      cb.isServiceTurbulent shouldBe true
+    "become unstable after a failed call" in {
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNSTABLE"
     }
 
     "state change to unhealthy from healthy after a succession of failed calls that exceed threshold" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      cb.isServiceTurbulent shouldBe true
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      cb.currentState.name shouldBe "UNHEALTHY"
-      cb.isServiceTurbulent shouldBe false
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
+      cb.invoke(failedCall).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNSTABLE"
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
-
-    "remain healthy after a succession of failed calls that exceed the failed call threshold count but occur after the failed count expiry time" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, -10000)
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
+    
+    "state change to unhealthy from healthy only after a succession of failed calls that are configured to break that exceed threshold" in {
+      val cb = new CircuitBreaker(defaultConfig, filteredExceptions)
+      cb.invoke(expectedFailure).failed.futureValue
       cb.currentState.name shouldBe "HEALTHY"
-      cb.isServiceTurbulent shouldBe false
-
-      // The CB should be resetting all failure counts as they are not occurring during the turbulent period
-      cb.registerFailedCall shouldBe 1
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNSTABLE"
+      
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNSTABLE"
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
-    "state change to unhealthy from healthy after a succession of successful and failed calls that exceed threshold" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
+    "remain unstable after a succession of failed calls that exceed the failed call threshold count but occur after the failed count expiry time" in {
+      val cb = new CircuitBreaker(defaultConfig.copy(unstablePeriodDuration = -5), defaultExceptions)
+      cb.invoke(failedCall).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNSTABLE"
+    }
 
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
-      cb.isServiceTurbulent shouldBe true
+    "state change to unhealthy from unstable after a succession of successful and failed calls that exceed threshold" in {
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
 
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNSTABLE"
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
-          cb.currentState.name shouldBe "HEALTHY"
-      }
-
-      intercept[Exception] {
-        cb.invoke(failedCall)
-      }
+      cb.invoke(failedCall).failed.futureValue
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.name shouldBe "HEALTHY"
-          cb.isServiceTurbulent shouldBe true
+          cb.currentState.name shouldBe "UNSTABLE"
       }
 
-      intercept[Exception] {
-        cb.invoke(failedCall)
+      cb.invoke(failedCall).failed.futureValue
+
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "UNSTABLE"
       }
-      cb.currentState.name shouldBe "UNHEALTHY"
-      cb.isServiceTurbulent shouldBe false
+
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "remain unhealthy and return a circuit breaker exception during the time threshold period" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      cb.setUnhealthyState()
-      intercept[UnhealthyServiceException] {
-        cb.invoke[Boolean](successfulCall)
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def initialState = Unavailable
       }
-      cb.currentState.name shouldBe "UNHEALTHY"
-      cb.isServiceTurbulent shouldBe false
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "state change to trial from unhealthy after a successful call executed after the time threshold period" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, -10000, fiveMinutes)
-      cb.setUnhealthyState()
+      val cb = new CircuitBreaker(defaultConfig.copy(unavailablePeriodDuration = -5), defaultExceptions) {
+    	  override def initialState = Unavailable
+      }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+        _ =>
           cb.currentState.name shouldBe "TRIAL"
-          cb.isServiceTurbulent shouldBe false
       }
     }
 
     "state change to unhealthy from trail after a failed call" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      cb.setTrialState()
-      cb.isServiceTurbulent shouldBe false
-      intercept[Exception] {
-        cb.invoke[Boolean](failedCall)
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def initialState = new Trial
       }
-      cb.currentState.name shouldBe "UNHEALTHY"
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "remain trial state after a single successful call" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      cb.setTrialState()
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def initialState = new Trial
+      }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
           cb.currentState.name shouldBe "TRIAL"
-          cb.isServiceTurbulent shouldBe false
       }
     }
 
     "state change from trial to healthy after the number successful calls equals the threshold amount" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      cb.setTrialState()
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def initialState = new Trial
+      }
+      
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
           cb.currentState.name shouldBe "TRIAL"
@@ -198,18 +196,47 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
           cb.currentState.name shouldBe "HEALTHY"
       }
     }
+    
+    "state change from trial to healthy after the number of calls with expected exceptions equals the threshold amount" in {
+      val cb = new CircuitBreaker(defaultConfig, filteredExceptions) {
+        override def initialState = new Trial
+      }
+      
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.currentState.name shouldBe "TRIAL"
+      
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.currentState.name shouldBe "HEALTHY"
+    }
+    
+    "state change from trial to healthy after the number of calls with expected exceptions or successful calls equals the threshold amount" in {
+      val cb = new CircuitBreaker(defaultConfig, filteredExceptions) {
+        override def initialState = new Trial
+      }
+      
+      cb.invoke(successfulCall).futureValue
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.invoke(successfulCall).futureValue
+      cb.currentState.name shouldBe "TRIAL"
+      
+      cb.invoke(expectedFailure).failed.futureValue
+      cb.currentState.name shouldBe "HEALTHY"
+    }
+    
+    "state change from trial to unhealthy after an unexpected exception is thrown" in {
+      val cb = new CircuitBreaker(defaultConfig, filteredExceptions) {
+        override def initialState = new Trial
+      }
+      
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
+    }
 
     "state change from trial to unhealthy after fewer than threshold series of successful calls and a single failed call" in {
-      val cb = new CircuitBreaker(serviceName, fourCalls, fiveMinutes, fiveMinutes)
-      cb.setTrialState()
-
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
-          cb.currentState.name shouldBe "TRIAL"
-      }
-
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def initialState = new Trial
       }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
@@ -217,14 +244,19 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
           cb.currentState.name shouldBe "TRIAL"
       }
 
-      intercept[Exception] {
-        cb.invoke[Boolean](failedCall)
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
       }
-      cb.currentState.name shouldBe "UNHEALTHY"
 
-      intercept[UnhealthyServiceException] {
-        cb.invoke[Boolean](successfulCall)
+      whenReady(cb.invoke[Boolean](successfulCall)) {
+        result =>
+          cb.currentState.name shouldBe "TRIAL"
       }
+
+      cb.invoke(failedCall).failed.futureValue
+      cb.currentState.name shouldBe "UNAVAILABLE"
+
+      cb.invoke[Boolean](successfulCall).failed.futureValue shouldBe a[UnhealthyServiceException]
     }
   }
 }
