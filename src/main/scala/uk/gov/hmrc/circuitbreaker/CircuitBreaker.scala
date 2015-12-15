@@ -20,6 +20,8 @@ import java.lang.System._
 import play.api.Logger
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 
 class UnhealthyServiceException(message: String) extends RuntimeException(message)
@@ -69,50 +71,47 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   
   def name: String = config.serviceName
   
-  def currentState: StateProcessor = synchronized { state }
+  def currentState: StateProcessor = state.get
   
   def isServiceAvailable = currentState != Unavailable
 
-  private var state: StateProcessor = initialState
+  private var state = new AtomicReference(initialState)
 
-  private[circuitbreaker] def setState(newState: StateProcessor) = {
-    state = newState
-    Logger.debug(s"Service [$name] is in state [${state.name}]")
-  }
-  
-  private def processCallResult(wasCallSuccessful: Boolean) = synchronized {
-    currentState.processCallResult(wasCallSuccessful)
+  private[circuitbreaker] def setState(oldState: StateProcessor, newState: StateProcessor) = {
+    /* If the state initiating a state change is no longer the current state
+     * we ignore this call. We are sacrificing a tiny bit of accuracy in our counters 
+     * for getting full thread-safety with good performance.
+     */
+    if (state.compareAndSet(oldState, newState))
+      Logger.debug(s"Service [$name] is in state [${newState.name}]")
   }
   
   def invoke[T](f: => Future[T]): Future[T] =
     currentState.stateAwareInvoke(f).map { x =>
-      processCallResult(wasCallSuccessful = true)
+      currentState.processCallResult(wasCallSuccessful = true)
       x
     } recoverWith {
       case unhealthyService: UnhealthyServiceException => 
         throw unhealthyService
       case ex: Throwable =>
-        processCallResult(wasCallSuccessful = !exceptionsToBreak(ex))
+        currentState.processCallResult(wasCallSuccessful = !exceptionsToBreak(ex))
         throw ex
     }
   
   protected sealed trait CountingState {
     def startCount: Int
     
-    private var count = startCount
+    private var count = new AtomicInteger(startCount)
     
-    def needsStateChangeAfterIncrement = {
-      count += 1
-      count >= config.numberOfCallsToTriggerStateChange
-    }
+    def needsStateChangeAfterIncrement = count.incrementAndGet >= config.numberOfCallsToTriggerStateChange
   }
   
   protected object Healthy extends StateProcessor {
     
     def processCallResult(wasCallSuccessful: Boolean) = {
       if (!wasCallSuccessful) {
-        if (config.numberOfCallsToTriggerStateChange > 1) setState(new Unstable)
-        else setState(Unavailable)
+        if (config.numberOfCallsToTriggerStateChange > 1) setState(this, new Unstable)
+        else setState(this, Unavailable)
       }
     }
   
@@ -126,10 +125,10 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     lazy val duration = config.unstablePeriodDuration
     
     def processCallResult(wasCallSuccessful: Boolean) = {
-      if (wasCallSuccessful && periodElapsed) setState(Healthy)
+      if (wasCallSuccessful && periodElapsed) setState(this, Healthy)
       else if (!wasCallSuccessful) {
-        if (periodElapsed) setState(new Unstable)
-        else if (needsStateChangeAfterIncrement) setState(Unavailable)
+        if (periodElapsed) setState(this, new Unstable)
+        else if (needsStateChangeAfterIncrement) setState(this, Unavailable)
       }
     }
   
@@ -142,8 +141,8 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     lazy val startCount = 0
     
     def processCallResult(wasCallSuccessful: Boolean) = {
-      if (wasCallSuccessful && needsStateChangeAfterIncrement) setState(Healthy)
-      else if (!wasCallSuccessful) setState(Unavailable)
+      if (wasCallSuccessful && needsStateChangeAfterIncrement) setState(this, Healthy)
+      else if (!wasCallSuccessful) setState(this, Unavailable)
     }
   
     val name = "TRIAL"
@@ -158,7 +157,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   
     override def stateAwareInvoke[T](f: => Future[T]): Future[T] = {
       if (periodElapsed) {
-        setState(new Trial)
+        setState(this, new Trial)
         f
       } else {
         Future.failed(new UnhealthyServiceException(config.serviceName))
