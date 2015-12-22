@@ -18,8 +18,8 @@ package uk.gov.hmrc.circuitbreaker
 
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{Matchers, WordSpecLike}
+
 import scala.concurrent.Future
-import scala.concurrent.Awaitable
 
 
 class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually with ScalaFutures {
@@ -33,7 +33,7 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
         serviceName = "someServiceCircuitBreaker"
       )
       
-      protected def breakOnExeption (t: Throwable) = true
+      protected def breakOnException(t: Throwable) = true
 
       whenReady(withCircuitBreaker[Boolean](returnOk)) {
         actualResult =>
@@ -48,7 +48,7 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
         serviceName = "test_2"
       )
       
-      protected def breakOnExeption (t: Throwable) = true
+      protected def breakOnException(t: Throwable) = true
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
       withCircuitBreaker[Boolean](throwException).failed.futureValue

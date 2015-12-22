@@ -44,8 +44,8 @@ trait UsingCircuitBreaker {
    *  In most cases only 5xx status responses should be treated as a server-side
    *  issue.
    */
-  protected def breakOnExeption (t: Throwable): Boolean
-  
+  protected def breakOnException(t: Throwable): Boolean
+
   /** Indicates whether the service is available. Returns `false` if the service
    *  is disabled due to accumulating too many failures in the configured time
    *  frame. Note that due to the asynchronous nature of the circuit breaker,
@@ -53,10 +53,10 @@ trait UsingCircuitBreaker {
    *  `true` as the state might change any time.
    */
   protected def isServiceAvailable = circuitBreaker.isServiceAvailable
-  
+
   /** The `CircuitBreaker` instance used by this trait.
    */
-  protected lazy val circuitBreaker = new CircuitBreaker(circuitBreakerConfig, breakOnExeption)
+  protected lazy val circuitBreaker = new CircuitBreaker(circuitBreakerConfig, breakOnException)
 
   /** Protects the specified future from being evaluated in case the service
    *  is disabled due to accumulating too many failures in the configured time
