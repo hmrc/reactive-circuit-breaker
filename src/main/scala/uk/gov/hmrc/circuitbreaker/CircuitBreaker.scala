@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 HM Revenue & Customs
+ * Copyright 2016 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,10 +70,10 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   protected def initialState: StateProcessor = Healthy
   
   def name: String = config.serviceName
-  
+
   def currentState: StateProcessor = state.get
   
-  def isServiceAvailable = currentState != Unavailable
+  def isServiceAvailable = currentState.name != "UNAVAILABLE"
 
   private var state = new AtomicReference(initialState)
 
@@ -111,7 +111,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     def processCallResult(wasCallSuccessful: Boolean) = {
       if (!wasCallSuccessful) {
         if (config.numberOfCallsToTriggerStateChange > 1) setState(this, new Unstable)
-        else setState(this, Unavailable)
+        else setState(this, new Unavailable)
       }
     }
   
@@ -128,7 +128,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
       if (wasCallSuccessful && periodElapsed) setState(this, Healthy)
       else if (!wasCallSuccessful) {
         if (periodElapsed) setState(this, new Unstable)
-        else if (needsStateChangeAfterIncrement) setState(this, Unavailable)
+        else if (needsStateChangeAfterIncrement) setState(this, new Unavailable)
       }
     }
   
@@ -142,14 +142,14 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     
     def processCallResult(wasCallSuccessful: Boolean) = {
       if (wasCallSuccessful && needsStateChangeAfterIncrement) setState(this, Healthy)
-      else if (!wasCallSuccessful) setState(this, Unavailable)
+      else if (!wasCallSuccessful) setState(this, new Unavailable)
     }
   
     val name = "TRIAL"
   }
   
   
-  protected object Unavailable extends StateProcessor with TimedState {
+  protected class Unavailable extends StateProcessor with TimedState {
     
     lazy val duration = config.unavailablePeriodDuration
     

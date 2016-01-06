@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 HM Revenue & Customs
+ * Copyright 2016 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
     "remain unhealthy and return a circuit breaker exception during the time threshold period" in {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
-        override def initialState = Unavailable
+        override def initialState = new Unavailable
       }
       
       cb.invoke(failedCall).failed.futureValue
@@ -139,7 +139,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
     "state change to trial from unhealthy after a successful call executed after the time threshold period" in {
       val cb = new CircuitBreaker(defaultConfig.copy(unavailablePeriodDuration = -5), defaultExceptions) {
-    	  override def initialState = Unavailable
+    	  override def initialState = new Unavailable
       }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
