@@ -59,7 +59,7 @@ private[circuitbreaker] sealed abstract class StateProcessor {
 private[circuitbreaker] sealed trait TimedState {
   def duration: Int
   private val periodStart = currentTimeMillis
-  def periodElapsed: Boolean = (currentTimeMillis - periodStart > duration)
+  def periodElapsed: Boolean = currentTimeMillis - periodStart > duration
 }
 
 
@@ -70,12 +70,15 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   protected def initialState: StateProcessor = Healthy
   
   def name: String = config.serviceName
-
+  
   def currentState: StateProcessor = state.get
   
-  def isServiceAvailable = currentState.name != "UNAVAILABLE"
+  def isServiceAvailable = currentState match {
+    case unavailableState: Unavailable => unavailableState.periodElapsed
+    case _ => true
+  }
 
-  private var state = new AtomicReference(initialState)
+  private val state = new AtomicReference(initialState)
 
   private[circuitbreaker] def setState(oldState: StateProcessor, newState: StateProcessor) = {
     /* If the state initiating a state change is no longer the current state
@@ -101,7 +104,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   protected sealed trait CountingState {
     def startCount: Int
     
-    private var count = new AtomicInteger(startCount)
+    private val count = new AtomicInteger(startCount)
     
     def needsStateChangeAfterIncrement = count.incrementAndGet >= config.numberOfCallsToTriggerStateChange
   }
@@ -127,7 +130,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     def processCallResult(wasCallSuccessful: Boolean) = {
       if (wasCallSuccessful && periodElapsed) setState(this, Healthy)
       else if (!wasCallSuccessful) {
-        if (periodElapsed) setState(this, new Unstable)
+        if (periodElapsed) setState(this, new Unstable) // resets count
         else if (needsStateChangeAfterIncrement) setState(this, new Unavailable)
       }
     }
@@ -152,7 +155,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
   protected class Unavailable extends StateProcessor with TimedState {
     
     lazy val duration = config.unavailablePeriodDuration
-    
+
     def processCallResult(wasCallSuccessful: Boolean) = ()
   
     override def stateAwareInvoke[T](f: => Future[T]): Future[T] = {

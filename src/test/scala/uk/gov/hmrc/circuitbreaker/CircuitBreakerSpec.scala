@@ -139,7 +139,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
     "state change to trial from unhealthy after a successful call executed after the time threshold period" in {
       val cb = new CircuitBreaker(defaultConfig.copy(unavailablePeriodDuration = -5), defaultExceptions) {
-    	  override def initialState = new Unavailable
+        override def initialState = new Unavailable
       }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
@@ -257,6 +257,44 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
       cb.currentState.name shouldBe "UNAVAILABLE"
 
       cb.invoke[Boolean](successfulCall).failed.futureValue shouldBe a[UnhealthyServiceException]
+    }
+  }
+
+  "CircuitBreaker isServiceAvailable" should {
+
+    val unavailablePeriod = 100
+    val shorterThanUnavailablePeriod = 80
+    val longerThanUnavailablePeriod = 120
+
+    "return false if circuit breaker is in Unavailable state and unavailable period has not elapsed" in {
+      val cb = new CircuitBreaker(CircuitBreakerConfig(serviceName, fourCalls, unavailablePeriod, fiveMinutes), defaultExceptions) {
+        override def initialState = new Unavailable
+      }
+
+      Thread.sleep(shorterThanUnavailablePeriod)
+      cb.isServiceAvailable shouldBe false
+    }
+
+    "return true if circuit breaker is in Unavailable state and unavailable period has elapsed" in {
+      val cb = new CircuitBreaker(CircuitBreakerConfig(serviceName, fourCalls, unavailablePeriod, fiveMinutes), defaultExceptions) {
+        override def initialState = new Unavailable
+      }
+
+      Thread.sleep(longerThanUnavailablePeriod)
+      cb.isServiceAvailable shouldBe true
+    }
+
+    "return true if circuit breaker is in Healthy, Unstable or Trial states" in {
+      val cb = new CircuitBreaker(CircuitBreakerConfig(serviceName, fourCalls, fiveMinutes, fiveMinutes), defaultExceptions) {
+
+        val states = List(Healthy, new Unstable, new Trial)
+      }
+
+      cb.states.foreach { state =>
+        cb.setState(cb.currentState, state)
+
+        cb.isServiceAvailable shouldBe true
+      }
     }
   }
 }
