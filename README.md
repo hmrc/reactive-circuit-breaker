@@ -19,6 +19,8 @@ The transition between the states is based on the variables supplied to the circ
 When the circuit breaker for a upstream service is in the Unavailable state, all requests to that service will result in a UnhealthyServiceException returned.
 Note: In this occurrence, the upstream service is never called.
 
+![Circuit Breaker FSM](http://i.imgur.com/jAoL2eP.png?raw=true "Circuit Breaker FSM")
+
 For configuration details see the [scaladoc](src/main/scala/uk/gov/hmrc/circuitbreaker/UsingCircuitBreaker.scala) of this mixin. 
 
 ##Download reactive-circuit-breaker
