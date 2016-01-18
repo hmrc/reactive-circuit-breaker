@@ -17,7 +17,7 @@
 package uk.gov.hmrc.circuitbreaker
 
 import java.lang.System._
-import play.api.Logger
+import play.api.{LoggerLike, Logger}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.util.concurrent.atomic.AtomicInteger
@@ -80,13 +80,17 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
 
   private val state = new AtomicReference(initialState)
 
+  protected def getLogger: LoggerLike = Logger
+
+
   private[circuitbreaker] def setState(oldState: StateProcessor, newState: StateProcessor) = {
     /* If the state initiating a state change is no longer the current state
      * we ignore this call. We are sacrificing a tiny bit of accuracy in our counters 
      * for getting full thread-safety with good performance.
      */
-    if (state.compareAndSet(oldState, newState))
-      Logger.debug(s"Service [$name] is in state [${newState.name}]")
+    if (state.compareAndSet(oldState, newState)) {
+      getLogger.warn(s"circuit-breaker: Service [$name] is in state [${newState.name}]")
+    }
   }
   
   def invoke[T](f: => Future[T]): Future[T] =

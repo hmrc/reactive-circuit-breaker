@@ -16,28 +16,31 @@
 
 package uk.gov.hmrc.circuitbreaker
 
+import ch.qos.logback.classic.{Logger => LogbackLogger}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.Logger
+import play.api.LoggerLike
 
 import scala.concurrent.Future
-
 
 class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
   private def successfulCall: Future[Boolean] = Future.successful(true)
 
   private def failedCall: Future[Boolean] = Future.failed(new RuntimeException("some exception"))
+
   private def expectedFailure: Future[Boolean] = Future.failed(new ExpectedException)
 
   val fiveMinutes: Int = 5 * 60 * 1000
   val fourCalls: Int = 4
   val serviceName = "SomeServiceName"
-  
+
   class ExpectedException extends RuntimeException("ExpectedException")
-  
+
   val defaultConfig = CircuitBreakerConfig(serviceName, fourCalls, fiveMinutes, fiveMinutes)
   val defaultExceptions: Throwable => Boolean = (_ => true)
-  
+
   val filteredExceptions: Throwable => Boolean = {
     case _: ExpectedException => false
     case _ => true
@@ -60,7 +63,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
 
     "become unstable after a failed call" in {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNSTABLE"
     }
@@ -71,26 +74,26 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNSTABLE"
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNAVAILABLE"
     }
-    
+
     "state change to unhealthy from healthy only after a succession of failed calls that are configured to break that exceed threshold" in {
       val cb = new CircuitBreaker(defaultConfig, filteredExceptions)
       cb.invoke(expectedFailure).failed.futureValue
       cb.currentState.name shouldBe "HEALTHY"
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNSTABLE"
-      
+
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNSTABLE"
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNAVAILABLE"
     }
@@ -132,7 +135,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
         override def initialState = new Unavailable
       }
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNAVAILABLE"
     }
@@ -152,7 +155,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
         override def initialState = new Trial
       }
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNAVAILABLE"
     }
@@ -172,7 +175,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
         override def initialState = new Trial
       }
-      
+
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
           cb.currentState.name shouldBe "TRIAL"
@@ -196,40 +199,40 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
           cb.currentState.name shouldBe "HEALTHY"
       }
     }
-    
+
     "state change from trial to healthy after the number of calls with expected exceptions equals the threshold amount" in {
       val cb = new CircuitBreaker(defaultConfig, filteredExceptions) {
         override def initialState = new Trial
       }
-      
+
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.currentState.name shouldBe "TRIAL"
-      
+
       cb.invoke(expectedFailure).failed.futureValue
       cb.currentState.name shouldBe "HEALTHY"
     }
-    
+
     "state change from trial to healthy after the number of calls with expected exceptions or successful calls equals the threshold amount" in {
       val cb = new CircuitBreaker(defaultConfig, filteredExceptions) {
         override def initialState = new Trial
       }
-      
+
       cb.invoke(successfulCall).futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(successfulCall).futureValue
       cb.currentState.name shouldBe "TRIAL"
-      
+
       cb.invoke(expectedFailure).failed.futureValue
       cb.currentState.name shouldBe "HEALTHY"
     }
-    
+
     "state change from trial to unhealthy after an unexpected exception is thrown" in {
       val cb = new CircuitBreaker(defaultConfig, filteredExceptions) {
         override def initialState = new Trial
       }
-      
+
       cb.invoke(failedCall).failed.futureValue
       cb.currentState.name shouldBe "UNAVAILABLE"
     }
@@ -296,5 +299,46 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
         cb.isServiceAvailable shouldBe true
       }
     }
+  }
+
+  "CircuitBreaker" should {
+    "log state information whenever state changes" in {
+      val stubbedLogger = new LoggerLikeStub()
+
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def getLogger = stubbedLogger
+
+        setState(currentState, new Unavailable)
+      }
+
+      stubbedLogger.logMessages.size shouldBe 1
+      stubbedLogger.logMessages.head shouldBe s"circuit-breaker: Service [$serviceName] is in state [UNAVAILABLE]"
+    }
+
+
+    "should not log when the current state and old state are different" in {
+      val stubbedLogger = new LoggerLikeStub()
+
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def getLogger = stubbedLogger
+
+        setState(new Unstable, new Unavailable)
+      }
+
+      stubbedLogger.logMessages.size shouldBe 0
+    }
+  }
+}
+
+class LoggerLikeStub extends LoggerLike {
+
+  import scala.collection.mutable.Buffer
+
+  val logMessages: Buffer[String] = Buffer()
+
+  override val logger: Logger = null
+
+  override def warn(msg: => String) = {
+    logMessages += msg
   }
 }
