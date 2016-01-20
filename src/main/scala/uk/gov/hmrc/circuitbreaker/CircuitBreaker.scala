@@ -65,23 +65,24 @@ private[circuitbreaker] sealed trait TimedState {
 
 private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, exceptionsToBreak: Throwable => Boolean) {
 
-  Logger.info(s"Circuit Breaker [$name] instance created with config $config")
+  getLogger.info(s"Circuit Breaker [$name] instance created with config $config")
+
+  private val state = new AtomicReference(initialState)
 
   protected def initialState: StateProcessor = Healthy
   
   def name: String = config.serviceName
   
   def currentState: StateProcessor = state.get
-  
+
+  logState(currentState)
+
   def isServiceAvailable = currentState match {
     case unavailableState: Unavailable => unavailableState.periodElapsed
     case _ => true
   }
 
-  private val state = new AtomicReference(initialState)
-
   protected def getLogger: LoggerLike = Logger
-
 
   private[circuitbreaker] def setState(oldState: StateProcessor, newState: StateProcessor) = {
     /* If the state initiating a state change is no longer the current state
@@ -89,10 +90,14 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
      * for getting full thread-safety with good performance.
      */
     if (state.compareAndSet(oldState, newState)) {
-      getLogger.warn(s"circuit-breaker: Service [$name] is in state [${newState.name}]")
+      logState(newState)
     }
   }
-  
+
+  def logState(newState: StateProcessor): Unit = {
+    getLogger.warn(s"circuitbreaker: Service [$name] is in state [${newState.name}]")
+  }
+
   def invoke[T](f: => Future[T]): Future[T] =
     currentState.stateAwareInvoke(f).map { x =>
       currentState.processCallResult(wasCallSuccessful = true)
