@@ -302,6 +302,19 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
   }
 
   "CircuitBreaker" should {
+
+    "log the initial state after creation" in {
+      val stubbedLogger = new LoggerLikeStub()
+
+      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        override def getLogger = stubbedLogger
+      }
+
+      stubbedLogger.logMessages.size shouldBe 1
+      stubbedLogger.logMessages.head shouldBe s"circuitbreaker: Service [$serviceName] is in state [HEALTHY]"
+    }
+
+
     "log state information whenever state changes" in {
       val stubbedLogger = new LoggerLikeStub()
 
@@ -311,8 +324,8 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
         setState(currentState, new Unavailable)
       }
 
-      stubbedLogger.logMessages.size shouldBe 1
-      stubbedLogger.logMessages.head shouldBe s"circuit-breaker: Service [$serviceName] is in state [UNAVAILABLE]"
+      stubbedLogger.logMessages.size shouldBe 2
+      stubbedLogger.logMessages.last shouldBe s"circuitbreaker: Service [$serviceName] is in state [UNAVAILABLE]"
     }
 
 
@@ -325,7 +338,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
         setState(new Unstable, new Unavailable)
       }
 
-      stubbedLogger.logMessages.size shouldBe 0
+      stubbedLogger.logMessages.size shouldBe 1
     }
   }
 }
@@ -338,7 +351,8 @@ class LoggerLikeStub extends LoggerLike {
 
   override val logger: Logger = null
 
-  override def warn(msg: => String) = {
-    logMessages += msg
-  }
+  override def warn(msg: => String) = logMessages += msg
+
+  override def info(msg: => String) = () // ignore
+
 }
