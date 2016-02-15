@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 HM Revenue & Customs
+ * Copyright 2016 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
         serviceName = "someServiceCircuitBreaker"
       )
       
-      protected def breakOnException(t: Throwable) = true
+      def breakOnException(t: Throwable) = true
 
       whenReady(withCircuitBreaker[Boolean](returnOk)) {
         actualResult =>
@@ -48,23 +48,35 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
         serviceName = "test_2"
       )
       
-      protected def breakOnException(t: Throwable) = true
+      def breakOnException(t: Throwable) = true
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
       withCircuitBreaker[Boolean](throwException).failed.futureValue
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
-      circuitBreaker.currentState.name shouldBe "UNSTABLE"
+      circuitBreaker.currentState.state.name shouldBe "UNSTABLE"
       isServiceAvailable shouldBe true
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
-      circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
+      circuitBreaker.currentState.state.name shouldBe "UNAVAILABLE"
       isServiceAvailable shouldBe false
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue shouldBe an[UnhealthyServiceException]
 
-      circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
+      circuitBreaker.currentState.state.name shouldBe "UNAVAILABLE"
+    }
+
+    "return the current state of the circuit breaker" in new UsingCircuitBreaker {
+      lazy val circuitBreakerConfig = CircuitBreakerConfig(
+        serviceName = "someServiceCircuitBreaker"
+      )
+
+      def breakOnException(t: Throwable) = true
+
+      whenReady(withCircuitBreaker[Boolean](returnOk)) {
+        _ => currentState shouldBe HEALTHY
+      }
     }
 
   }
