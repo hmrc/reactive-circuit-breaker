@@ -36,7 +36,9 @@ trait UsingCircuitBreaker {
    *   of failures
    * - `unstablePeriodDuration` - the time in seconds that failure counts are
    *   accumulated. When the period ends without reaching the limit, the counter
-   *   switches back to 0.
+   *   switches back to 0
+   * - `callback` - an optional callback to be invoked on state transitions.
+    *  The callback has type [[Callback]] and takes one parameter which is a [[State]] and returns [[Unit]].
    */
   protected def circuitBreakerConfig: CircuitBreakerConfig
   

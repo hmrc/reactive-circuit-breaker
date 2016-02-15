@@ -153,7 +153,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override def state = HEALTHY
+    override val state = HEALTHY
   }
 
 
@@ -170,7 +170,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override def state = UNSTABLE
+    override val state = UNSTABLE
   }
 
 
@@ -183,7 +183,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       else if (!wasCallSuccessful) setState(this, new Unavailable)
     }
 
-    override def state = TRIAL
+    override val state = TRIAL
   }
 
 
@@ -202,7 +202,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override def state = UNAVAILABLE
+    override val state = UNAVAILABLE
   }
 
 }
