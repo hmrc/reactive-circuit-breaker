@@ -56,19 +56,10 @@ sealed trait State {
 }
 
 sealed private trait StateProcessor extends State {
-  private[circuitbreaker] def processCallResult(wasCallSuccessful: Boolean): Unit
+  def processCallResult(wasCallSuccessful: Boolean): Unit
 
-  private[circuitbreaker] def stateAwareInvoke[T](f: => Future[T]): Future[T] = f
+  def stateAwareInvoke[T](f: => Future[T]): Future[T] = f
 }
-
-private[circuitbreaker] sealed trait TimedState {
-  def duration: Int
-
-  private val periodStart = currentTimeMillis
-
-  def periodElapsed: Boolean = currentTimeMillis - periodStart > duration
-}
-
 
 private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, exceptionsToBreak: Throwable => Boolean) {
 
@@ -112,6 +103,14 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
         currentState.processCallResult(wasCallSuccessful = !exceptionsToBreak(ex))
         throw ex
     }
+  }
+
+  protected sealed trait TimedState {
+    def duration: Int
+
+    private val periodStart = currentTimeMillis
+
+    def periodElapsed: Boolean = currentTimeMillis - periodStart > duration
   }
 
   protected sealed trait CountingState {
