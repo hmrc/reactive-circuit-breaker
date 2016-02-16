@@ -54,17 +54,17 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
-      circuitBreaker.currentState.state.name shouldBe "UNSTABLE"
+      circuitBreaker.currentState.name shouldBe "UNSTABLE"
       isServiceAvailable shouldBe true
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
-      circuitBreaker.currentState.state.name shouldBe "UNAVAILABLE"
+      circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
       isServiceAvailable shouldBe false
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue shouldBe an[UnhealthyServiceException]
 
-      circuitBreaker.currentState.state.name shouldBe "UNAVAILABLE"
+      circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "return the current state of the circuit breaker" in new UsingCircuitBreaker {
@@ -75,7 +75,7 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
       def breakOnException(t: Throwable) = true
 
       whenReady(withCircuitBreaker[Boolean](returnOk)) {
-        _ => currentState shouldBe HEALTHY
+        _ => currentState.name shouldBe "HEALTHY"
       }
     }
 

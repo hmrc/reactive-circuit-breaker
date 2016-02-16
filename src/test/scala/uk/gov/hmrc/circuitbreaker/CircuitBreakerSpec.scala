@@ -51,14 +51,14 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
     "starts up in a healthy state" in {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
-      cb.currentState.state shouldBe HEALTHY
+      cb.currentState.name shouldBe "HEALTHY"
     }
 
     "remain healthy after a successful call" in {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
       whenReady(cb.invoke(successfulCall)) {
         result =>
-          cb.currentState.state shouldBe HEALTHY
+          cb.currentState.name shouldBe "HEALTHY"
       }
     }
 
@@ -66,7 +66,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
     }
 
     "state change to unhealthy from healthy after a succession of failed calls that exceed threshold" in {
@@ -74,29 +74,29 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "state change to unhealthy from healthy only after a succession of failed calls that are configured to break that exceed threshold" in {
       val cb = new CircuitBreaker(defaultConfig, filteredExceptions)
       cb.invoke(expectedFailure).failed.futureValue
-      cb.currentState.state shouldBe HEALTHY
+      cb.currentState.name shouldBe "HEALTHY"
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
 
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "remain unstable after a succession of failed calls that exceed the failed call threshold count but occur after the failed count expiry time" in {
@@ -105,20 +105,20 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
     }
 
     "state change to unhealthy from unstable after a succession of successful and failed calls that exceed threshold" in {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
 
       cb.invoke(failedCall).failed.futureValue
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe UNSTABLE
+          cb.currentState.name shouldBe "UNSTABLE"
 
       }
 
@@ -126,11 +126,11 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe UNSTABLE
+          cb.currentState.name shouldBe "UNSTABLE"
       }
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "remain unhealthy and return a circuit breaker exception during the time threshold period" in {
@@ -139,7 +139,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       }
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "state change to trial from unhealthy after a successful call executed after the time threshold period" in {
@@ -149,7 +149,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         _ =>
-          cb.currentState.state shouldBe TRIAL
+          cb.currentState.name shouldBe "TRIAL"
       }
     }
 
@@ -159,7 +159,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       }
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "remain trial state after a single successful call" in {
@@ -169,7 +169,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe TRIAL
+          cb.currentState.name shouldBe "TRIAL"
       }
     }
 
@@ -180,7 +180,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe TRIAL
+          cb.currentState.name shouldBe "TRIAL"
       }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
@@ -189,7 +189,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe TRIAL
+          cb.currentState.name shouldBe "TRIAL"
       }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
@@ -198,7 +198,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe HEALTHY
+          cb.currentState.name shouldBe "HEALTHY"
       }
     }
 
@@ -210,10 +210,10 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(expectedFailure).failed.futureValue
-      cb.currentState.state shouldBe TRIAL
+      cb.currentState.name shouldBe "TRIAL"
 
       cb.invoke(expectedFailure).failed.futureValue
-      cb.currentState.state shouldBe HEALTHY
+      cb.currentState.name shouldBe "HEALTHY"
     }
 
     "state change from trial to healthy after the number of calls with expected exceptions or successful calls equals the threshold amount" in {
@@ -224,10 +224,10 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       cb.invoke(successfulCall).futureValue
       cb.invoke(expectedFailure).failed.futureValue
       cb.invoke(successfulCall).futureValue
-      cb.currentState.state shouldBe TRIAL
+      cb.currentState.name shouldBe "TRIAL"
 
       cb.invoke(expectedFailure).failed.futureValue
-      cb.currentState.state shouldBe HEALTHY
+      cb.currentState.name shouldBe "HEALTHY"
     }
 
     "state change from trial to unhealthy after an unexpected exception is thrown" in {
@@ -236,7 +236,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       }
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
     }
 
     "state change from trial to unhealthy after fewer than threshold series of successful calls and a single failed call" in {
@@ -246,7 +246,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe TRIAL
+          cb.currentState.name shouldBe "TRIAL"
       }
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
@@ -255,11 +255,11 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       whenReady(cb.invoke[Boolean](successfulCall)) {
         result =>
-          cb.currentState.state shouldBe TRIAL
+          cb.currentState.name shouldBe "TRIAL"
       }
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNAVAILABLE
+      cb.currentState.name shouldBe "UNAVAILABLE"
 
       cb.invoke[Boolean](successfulCall).failed.futureValue shouldBe a[UnhealthyServiceException]
     }
@@ -311,12 +311,12 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
       }
 
       cb.invoke(failedCall).failed.futureValue
-      cb.currentState.state shouldBe UNSTABLE
+      cb.currentState.name shouldBe "UNSTABLE"
 
       // We need eventually because the state change callback future may not have returned yet
       eventually {
         stubbedLogger.logMessages.size shouldBe 1
-        stubbedLogger.logMessages.last shouldBe s"circuitbreaker: Service [$serviceName] is in state [${UNSTABLE.name}]"
+        stubbedLogger.logMessages.last shouldBe s"circuitbreaker: Service [$serviceName] is in state [UNSTABLE]"
       }
     }
 

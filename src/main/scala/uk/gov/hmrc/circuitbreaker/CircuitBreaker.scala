@@ -34,8 +34,7 @@ case class CircuitBreakerConfig(serviceName: String,
 
 case object CircuitBreakerConfig {
 
-  private val defaultDuration: Int = 5 * 60 * 1000
-  // 5 minutes
+  private val defaultDuration: Int = 5 * 60 * 1000 // 5 minutes
   private val defaultNumberOfCalls: Int = 4
 
   def apply(
@@ -52,36 +51,15 @@ case object CircuitBreakerConfig {
   )
 }
 
-
-trait State {
+sealed trait State {
   def name: String
 }
 
-case object HEALTHY extends State {
-  val name = "HEALTHY"
+sealed private trait StateProcessor extends State {
+  private[circuitbreaker] def processCallResult(wasCallSuccessful: Boolean): Unit
+
+  private[circuitbreaker] def stateAwareInvoke[T](f: => Future[T]): Future[T] = f
 }
-
-case object UNSTABLE extends State {
-  val name = "UNSTABLE"
-}
-
-case object TRIAL extends State {
-  val name = "TRIAL"
-}
-
-case object UNAVAILABLE extends State {
-  val name = "UNAVAILABLE"
-}
-
-
-private[circuitbreaker] sealed trait StateProcessor {
-  def state: State
-
-  def processCallResult(wasCallSuccessful: Boolean): Unit
-
-  def stateAwareInvoke[T](f: => Future[T]): Future[T] = f
-}
-
 
 private[circuitbreaker] sealed trait TimedState {
   def duration: Int
@@ -104,9 +82,9 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
 
   Logger.info(s"Circuit Breaker [$name] instance created with config $config")
 
-  private def invokeCallback(stateProcessor: StateProcessor) = config.callback match {
+  private def invokeCallback(state: State) = config.callback match {
     case None => Future.successful(())
-    case Some(callback) => Future(callback(stateProcessor.state))
+    case Some(callback) => Future(callback(state))
   }
 
   def isServiceAvailable = currentState match {
@@ -115,7 +93,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
   }
 
   private[circuitbreaker] def setState(oldState: StateProcessor, newState: StateProcessor): Unit =
-  /* If the stateProcessor initiating a stateProcessor change is no longer the current stateProcessor
+  /* If the state initiating a state change is no longer the current state
    * we ignore this call. We are sacrificing a tiny bit of accuracy in our counters
    * for getting full thread-safety with good performance.
    */
@@ -144,7 +122,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
     def needsStateChangeAfterIncrement = count.incrementAndGet >= config.numberOfCallsToTriggerStateChange
   }
 
-  protected object Healthy extends StateProcessor {
+  private[circuitbreaker] object Healthy extends StateProcessor {
 
     def processCallResult(wasCallSuccessful: Boolean) = {
       if (!wasCallSuccessful) {
@@ -153,11 +131,10 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override val state = HEALTHY
+    override val name = "HEALTHY"
   }
 
-
-  protected class Unstable extends StateProcessor with TimedState with CountingState {
+  private[circuitbreaker] class Unstable extends StateProcessor with TimedState with CountingState {
 
     lazy val startCount = 1
     lazy val duration = config.unstablePeriodDuration
@@ -170,11 +147,11 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override val state = UNSTABLE
+    override val name = "UNSTABLE"
   }
 
 
-  protected class Trial extends StateProcessor with CountingState {
+  private[circuitbreaker] class Trial extends StateProcessor with CountingState {
 
     lazy val startCount = 0
 
@@ -183,11 +160,10 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       else if (!wasCallSuccessful) setState(this, new Unavailable)
     }
 
-    override val state = TRIAL
+    override val name = "TRIAL"
   }
 
-
-  protected class Unavailable extends StateProcessor with TimedState {
+  private[circuitbreaker] class Unavailable extends StateProcessor with TimedState {
 
     lazy val duration = config.unavailablePeriodDuration
 
@@ -202,7 +178,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override val state = UNAVAILABLE
+    override val name = "UNAVAILABLE"
   }
 
 }
