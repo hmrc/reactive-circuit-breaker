@@ -21,5 +21,5 @@ package uk.gov.hmrc
   */
 package object circuitbreaker {
 
-  type Callback = State => Unit
+  type StateChange = State => Unit
 }

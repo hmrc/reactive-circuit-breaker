@@ -20,6 +20,7 @@ import java.lang.System._
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 import play.api.Logger
+import uk.gov.hmrc.circuitbreaker.State._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -30,7 +31,7 @@ case class CircuitBreakerConfig(serviceName: String,
                                 numberOfCallsToTriggerStateChange: Int,
                                 unavailablePeriodDuration: Int,
                                 unstablePeriodDuration: Int,
-                                callback: Option[Callback])
+                                onStateChange: Option[StateChange])
 
 case object CircuitBreakerConfig {
 
@@ -42,23 +43,37 @@ case object CircuitBreakerConfig {
              numberOfCallsToTriggerStateChange: Option[Int] = None,
              unavailablePeriodDuration: Option[Int] = None,
              unstablePeriodDuration: Option[Int] = None,
-             callback: Option[Callback] = None
+             onStateChange: Option[StateChange] = None
            ): CircuitBreakerConfig = apply(serviceName,
     numberOfCallsToTriggerStateChange.getOrElse(defaultNumberOfCalls),
     unavailablePeriodDuration.getOrElse(defaultDuration),
     unstablePeriodDuration.getOrElse(defaultDuration),
-    callback
+    onStateChange
   )
 }
 
-sealed trait State {
-  def name: String
+sealed trait State
+
+object State {
+
+  case object HEALTHY extends State
+
+  case object UNSTABLE extends State
+
+  case object UNAVAILABLE extends State
+
+  case object TRIAL extends State
+
+  val states = Seq(HEALTHY, UNSTABLE, UNAVAILABLE, TRIAL)
+
 }
 
-sealed private trait StateProcessor extends State {
+sealed private trait StateProcessor {
   def processCallResult(wasCallSuccessful: Boolean): Unit
 
   def stateAwareInvoke[T](f: => Future[T]): Future[T] = f
+
+  def state : State
 }
 
 private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, exceptionsToBreak: Throwable => Boolean) {
@@ -73,9 +88,9 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
 
   Logger.info(s"Circuit Breaker [$name] instance created with config $config")
 
-  private def invokeCallback(state: State) = config.callback match {
+  private def invokeOnStateChange(stateProcessor: StateProcessor) = config.onStateChange match {
     case None => Future.successful(())
-    case Some(callback) => Future(callback(state))
+    case Some(onStateChange) => Future(onStateChange(stateProcessor.state))
   }
 
   def isServiceAvailable = currentState match {
@@ -89,7 +104,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
    * for getting full thread-safety with good performance.
    */
     if (state.compareAndSet(oldState, newState)) {
-      invokeCallback(newState)
+      invokeOnStateChange(newState)
     }
 
   def invoke[T](f: => Future[T]): Future[T] = {
@@ -130,7 +145,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override val name = "HEALTHY"
+    override val state = HEALTHY
   }
 
   private[circuitbreaker] class Unstable extends StateProcessor with TimedState with CountingState {
@@ -146,7 +161,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override val name = "UNSTABLE"
+    override val state = UNSTABLE
   }
 
 
@@ -159,7 +174,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       else if (!wasCallSuccessful) setState(this, new Unavailable)
     }
 
-    override val name = "TRIAL"
+    override val state = TRIAL
   }
 
   private[circuitbreaker] class Unavailable extends StateProcessor with TimedState {
@@ -177,7 +192,7 @@ private[circuitbreaker] class CircuitBreaker(config: CircuitBreakerConfig, excep
       }
     }
 
-    override val name = "UNAVAILABLE"
+    override val state = UNAVAILABLE
   }
 
 }

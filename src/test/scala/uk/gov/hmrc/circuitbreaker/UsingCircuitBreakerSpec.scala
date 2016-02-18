@@ -18,6 +18,7 @@ package uk.gov.hmrc.circuitbreaker
 
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{Matchers, WordSpecLike}
+import State._
 
 import scala.concurrent.Future
 
@@ -54,17 +55,17 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
-      circuitBreaker.currentState.name shouldBe "UNSTABLE"
+      circuitBreaker.currentState.state shouldBe UNSTABLE
       isServiceAvailable shouldBe true
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue
 
-      circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
+      circuitBreaker.currentState.state shouldBe UNAVAILABLE
       isServiceAvailable shouldBe false
 
       withCircuitBreaker[Boolean](throwException).failed.futureValue shouldBe an[UnhealthyServiceException]
 
-      circuitBreaker.currentState.name shouldBe "UNAVAILABLE"
+      circuitBreaker.currentState.state shouldBe UNAVAILABLE
     }
 
     "return the current state of the circuit breaker" in new UsingCircuitBreaker {
@@ -75,7 +76,7 @@ class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually 
       def breakOnException(t: Throwable) = true
 
       whenReady(withCircuitBreaker[Boolean](returnOk)) {
-        _ => currentState.name shouldBe "HEALTHY"
+        _ => currentState shouldBe HEALTHY
       }
     }
 
