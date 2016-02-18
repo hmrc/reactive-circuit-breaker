@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 HM Revenue & Customs
+ * Copyright 2016 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,8 @@ trait UsingCircuitBreaker {
    *   of failures
    * - `unstablePeriodDuration` - the time in seconds that failure counts are
    *   accumulated. When the period ends without reaching the limit, the counter
-   *   switches back to 0.
+   *   switches back to 0
+   * - `onStateChange` - an optional [[StateChange]] to be invoked on state transitions.
    */
   protected def circuitBreakerConfig: CircuitBreakerConfig
   
@@ -64,5 +65,12 @@ trait UsingCircuitBreaker {
    *  if it is enabled, it will succeed or fail with whatever result the original future produces.
    */
   protected def withCircuitBreaker[T](f: => Future[T]): Future[T] = circuitBreaker.invoke(f)
+
+  /**
+    * Returns a [[State]] that exposes the current state of the circuit breaker.
+    *
+    * @return [[State]]
+    */
+  protected def currentState: State = circuitBreaker.currentState.state
 
 }
