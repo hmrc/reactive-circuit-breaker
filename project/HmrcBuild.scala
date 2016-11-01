@@ -1,4 +1,3 @@
-import _root_.play.core.PlayVersion
 import sbt.Keys._
 import sbt._
 import uk.gov.hmrc.SbtAutoBuildPlugin
@@ -6,9 +5,6 @@ import uk.gov.hmrc.versioning.SbtGitVersioning
 
 
 object HmrcBuild extends Build {
-
-  import BuildDependencies._
-  import uk.gov.hmrc.DefaultBuildSettings._
 
   val appName = "reactive-circuit-breaker"
 

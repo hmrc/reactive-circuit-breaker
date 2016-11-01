@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.circuitbreaker
 
-import ch.qos.logback.classic.{Logger => LogbackLogger}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.Logger
