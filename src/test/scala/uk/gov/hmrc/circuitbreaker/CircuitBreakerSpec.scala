@@ -20,6 +20,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.Logger
 import play.api.LoggerLike
+import uk.gov.hmrc.play.http.HeaderCarrier
 
 import scala.concurrent.Future
 
@@ -30,7 +31,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
   private def failedCall: Future[Boolean] = Future.failed(new RuntimeException("some exception"))
 
   private def expectedFailure: Future[Boolean] = Future.failed(new ExpectedException)
-
+  implicit val hc = new HeaderCarrier()
   val fiveMinutes: Int = 5 * 60 * 1000
   val fourCalls: Int = 4
   val serviceName = "SomeServiceName"

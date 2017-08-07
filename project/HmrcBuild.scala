@@ -27,9 +27,10 @@ private object AppDependencies {
 
   private val scalaTestVersion = "2.2.6"
   private val pegdownVersion = "1.6.0"
-
+  private val httpVerbsVersion = "6.4.0"
   val compile = Seq(
-    "com.typesafe.play" %% "play" % PlayVersion.current
+    "com.typesafe.play" %% "play" % PlayVersion.current,
+    "uk.gov.hmrc" %% "http-verbs" % httpVerbsVersion
   )
 
   trait TestDependencies {
