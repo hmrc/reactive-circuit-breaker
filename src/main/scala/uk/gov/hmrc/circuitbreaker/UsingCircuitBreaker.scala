@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.circuitbreaker
 
+import uk.gov.hmrc.play.http.HeaderCarrier
+
 import scala.concurrent.Future
 
 /** Trait to be mixed in to services or connectors that wish to
@@ -63,6 +65,5 @@ trait UsingCircuitBreaker {
    *  frame. If the service is disabled, the future will fail with a `UnhealthyServiceException`,
    *  if it is enabled, it will succeed or fail with whatever result the original future produces.
    */
-  protected def withCircuitBreaker[T](f: => Future[T]): Future[T] = circuitBreaker.invoke(f)
-
+  protected def withCircuitBreaker[T](f: => Future[T])(implicit hc:HeaderCarrier): Future[T] = circuitBreaker.invoke(f)
 }
