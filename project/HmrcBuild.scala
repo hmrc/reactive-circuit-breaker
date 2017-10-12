@@ -11,7 +11,7 @@ object HmrcBuild extends Build {
   lazy val bulkEntityStreaming = Project(appName, file("."))
     .enablePlugins(SbtAutoBuildPlugin, SbtGitVersioning)
     .settings(
-      scalaVersion := "2.11.8",
+      scalaVersion := "2.11.11",
       libraryDependencies ++= AppDependencies(),
       crossScalaVersions := Seq("2.11.8"),
       resolvers := Seq(
@@ -23,14 +23,12 @@ object HmrcBuild extends Build {
 
 private object AppDependencies {
 
-  import play.core.PlayVersion
-
   private val scalaTestVersion = "2.2.6"
   private val pegdownVersion = "1.6.0"
-  private val httpVerbsVersion = "6.4.0"
   val compile = Seq(
-    "com.typesafe.play" %% "play" % PlayVersion.current,
-    "uk.gov.hmrc" %% "http-verbs" % httpVerbsVersion
+    "uk.gov.hmrc" %% "http-core" % "0.6.0",
+    "ch.qos.logback" % "logback-core" % "1.2.3",
+    "ch.qos.logback" % "logback-classic" % "1.2.3"
   )
 
   trait TestDependencies {
@@ -42,8 +40,7 @@ private object AppDependencies {
     def apply() = new TestDependencies {
       override lazy val test = Seq(
         "org.scalatest" %% "scalatest" % scalaTestVersion % scope,
-        "org.pegdown" % "pegdown" % pegdownVersion % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope
+        "org.pegdown" % "pegdown" % pegdownVersion % scope
       )
     }.test
   }

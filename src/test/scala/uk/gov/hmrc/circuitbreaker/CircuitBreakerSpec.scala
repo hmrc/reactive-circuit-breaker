@@ -16,21 +16,25 @@
 
 package uk.gov.hmrc.circuitbreaker
 
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.core.read.ListAppender
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpecLike}
-import org.slf4j.Logger
-import play.api.LoggerLike
-import uk.gov.hmrc.play.http.HeaderCarrier
+import org.slf4j.LoggerFactory
+import uk.gov.hmrc.http.HeaderCarrier
 
+import scala.collection.JavaConverters._
 import scala.concurrent.Future
 
-class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
+class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures with LogCapturing {
 
   private def successfulCall: Future[Boolean] = Future.successful(true)
 
   private def failedCall: Future[Boolean] = Future.failed(new RuntimeException("some exception"))
 
   private def expectedFailure: Future[Boolean] = Future.failed(new ExpectedException)
+
   implicit val hc = new HeaderCarrier()
   val fiveMinutes: Int = 5 * 60 * 1000
   val fourCalls: Int = 4
@@ -302,57 +306,67 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures {
   }
 
   "CircuitBreaker" should {
+    val logger = LoggerFactory.getLogger("CircuitBreaker").asInstanceOf[Logger]
 
     "log the initial state after creation" in {
-      val stubbedLogger = new LoggerLikeStub()
 
-      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
-        override def getLogger = stubbedLogger
+      withCaptureOfLoggingFrom(logger) { logList =>
+        val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+          override def getLogger = logger
+        }
+
+        val messagesExcludingInfo = logList.filterNot(_.getLevel.levelStr == "INFO")
+
+        messagesExcludingInfo.size shouldBe 1
+        messagesExcludingInfo.head.getMessage shouldBe s"circuitbreaker: Service [$serviceName] is in state [HEALTHY]"
+
       }
-
-      stubbedLogger.logMessages.size shouldBe 1
-      stubbedLogger.logMessages.head shouldBe s"circuitbreaker: Service [$serviceName] is in state [HEALTHY]"
     }
-
 
     "log state information whenever state changes" in {
-      val stubbedLogger = new LoggerLikeStub()
 
-      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
-        override def getLogger = stubbedLogger
+      withCaptureOfLoggingFrom(logger) { logList =>
+        val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+          override def getLogger = logger
 
-        setState(currentState, new Unavailable)
+          setState(currentState, new Unavailable)
+        }
+
+        val messagesExcludingInfo = logList.filterNot(_.getLevel.levelStr == "INFO")
+
+        messagesExcludingInfo.size shouldBe 2
+        messagesExcludingInfo.last.getMessage shouldBe s"circuitbreaker: Service [$serviceName] is in state [UNAVAILABLE]"
       }
-
-      stubbedLogger.logMessages.size shouldBe 2
-      stubbedLogger.logMessages.last shouldBe s"circuitbreaker: Service [$serviceName] is in state [UNAVAILABLE]"
     }
 
-
     "should not log when the current state and old state are different" in {
-      val stubbedLogger = new LoggerLikeStub()
 
-      val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
-        override def getLogger = stubbedLogger
+      withCaptureOfLoggingFrom(logger) { logList =>
+        val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+          override def getLogger = logger
 
-        setState(new Unstable, new Unavailable)
+          setState(new Unstable, new Unavailable)
+        }
+
+        println(logList)
+
+        logList.filterNot(_.getLevel.levelStr == "INFO").size shouldBe 1
+
       }
 
-      stubbedLogger.logMessages.size shouldBe 1
     }
   }
 }
 
-class LoggerLikeStub extends LoggerLike {
+trait LogCapturing {
 
-  import scala.collection.mutable.Buffer
-
-  val logMessages: Buffer[String] = Buffer()
-
-  override val logger: Logger = null
-
-  override def warn(msg: => String) = logMessages += msg
-
-  override def info(msg: => String) = () // ignore
-
+  def withCaptureOfLoggingFrom(logger: Logger)(body: (=> List[ILoggingEvent]) => Any): Any = {
+    val appender = new ListAppender[ILoggingEvent]()
+    appender.setContext(logger.getLoggerContext)
+    appender.start()
+    logger.addAppender(appender)
+    logger.setLevel(Level.ALL)
+    logger.setAdditive(true)
+    body(appender.list.asScala.toList)
+  }
 }
