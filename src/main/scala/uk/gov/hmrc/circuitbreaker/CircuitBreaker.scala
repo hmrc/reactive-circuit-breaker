@@ -19,10 +19,11 @@ package uk.gov.hmrc.circuitbreaker
 import java.lang.System._
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
-import play.api.{Logger, LoggerLike}
-import uk.gov.hmrc.play.http.HeaderCarrier
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
+import ch.qos.logback.classic.Logger
+import org.slf4j.LoggerFactory
+import uk.gov.hmrc.http.HeaderCarrier
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class UnhealthyServiceException(message: String) extends RuntimeException(message)
@@ -87,7 +88,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     case _ => true
   }
 
-  protected def getLogger: LoggerLike = Logger
+  protected def getLogger = LoggerFactory.getLogger(this.getClass).asInstanceOf[Logger]
 
   private[circuitbreaker] def setState(oldState: StateProcessor, newState: StateProcessor) = {
     /* If the state initiating a state change is no longer the current state
@@ -103,7 +104,7 @@ private[circuitbreaker] class CircuitBreaker(val config: CircuitBreakerConfig, e
     getLogger.warn(s"circuitbreaker: Service [$name] is in state [${newState.name}]")
   }
 
-  def invoke[T](f: => Future[T])(implicit hc:HeaderCarrier): Future[T] =
+  def invoke[T](f: => Future[T])(implicit hc: HeaderCarrier): Future[T] =
     currentState.stateAwareInvoke(f).map { x =>
       currentState.processCallResult(wasCallSuccessful = true)
       x
