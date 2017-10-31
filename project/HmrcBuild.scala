@@ -27,8 +27,8 @@ private object AppDependencies {
   private val pegdownVersion = "1.6.0"
   val compile = Seq(
     "uk.gov.hmrc" %% "http-core" % "0.6.0",
-    "ch.qos.logback" % "logback-core" % "1.2.3",
-    "ch.qos.logback" % "logback-classic" % "1.2.3"
+    "ch.qos.logback" % "logback-core" % "1.1.7",
+    "ch.qos.logback" % "logback-classic" % "1.1.7"
   )
 
   trait TestDependencies {
