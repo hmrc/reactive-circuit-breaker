@@ -4,6 +4,7 @@ import uk.gov.hmrc.SbtAutoBuildPlugin
 import uk.gov.hmrc.SbtArtifactory
 import uk.gov.hmrc.versioning.SbtGitVersioning
 import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
+import uk.gov.hmrc.SbtArtifactory.autoImport.makePublicallyAvailableOnBintray
 
 
 object HmrcBuild extends Build {
@@ -21,6 +22,7 @@ object HmrcBuild extends Build {
         Resolver.bintrayRepo("hmrc", "releases"),
         Resolver.typesafeRepo("releases")
       ))
+    .settings(makePublicallyAvailableOnBintray := true)
 }
 
 private object AppDependencies {
