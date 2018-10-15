@@ -1,7 +1,9 @@
 import sbt.Keys._
 import sbt._
 import uk.gov.hmrc.SbtAutoBuildPlugin
+import uk.gov.hmrc.SbtArtifactory
 import uk.gov.hmrc.versioning.SbtGitVersioning
+import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
 
 
 object HmrcBuild extends Build {
@@ -9,7 +11,8 @@ object HmrcBuild extends Build {
   val appName = "reactive-circuit-breaker"
 
   lazy val bulkEntityStreaming = Project(appName, file("."))
-    .enablePlugins(SbtAutoBuildPlugin, SbtGitVersioning)
+    .enablePlugins(SbtAutoBuildPlugin, SbtGitVersioning, SbtArtifactory)
+    .settings(majorVersion := 3)
     .settings(
       scalaVersion := "2.11.11",
       libraryDependencies ++= AppDependencies(),
@@ -17,8 +20,7 @@ object HmrcBuild extends Build {
       resolvers := Seq(
         Resolver.bintrayRepo("hmrc", "releases"),
         Resolver.typesafeRepo("releases")
-      )
-    )
+      ))
 }
 
 private object AppDependencies {
