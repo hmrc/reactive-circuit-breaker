@@ -7,7 +7,8 @@ object AppDependencies {
   val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.2.3"
 
   val scalaTest = "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+  val pegdown = "org.pegdown" % "pegdown" % "1.6.0" % "test"
 
   val compile = Seq(httpCore, logbackCore, logbackClassic)
-  val test = Seq(scalaTest)
+  val test = Seq(scalaTest, pegdown)
 }
