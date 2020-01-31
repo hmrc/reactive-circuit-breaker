@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@ import uk.gov.hmrc.http.HeaderCarrier
 import scala.concurrent.Future
 
 
-class WithCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually with ScalaFutures {
+class UsingCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually with ScalaFutures {
 
   private def returnOk = Future.successful(true)
-  implicit val hc = new HeaderCarrier()
+  implicit val hc = HeaderCarrier()
   "WithCircuitBreaker" should {
     
     "return the function result when no exception is thrown" in new UsingCircuitBreaker {

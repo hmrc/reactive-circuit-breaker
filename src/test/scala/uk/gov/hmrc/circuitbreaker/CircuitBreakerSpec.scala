@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
   private def expectedFailure: Future[Boolean] = Future.failed(new ExpectedException)
 
-  implicit val hc = new HeaderCarrier()
+  implicit val hc = HeaderCarrier()
   val fiveMinutes: Int = 5 * 60 * 1000
   val fourCalls: Int = 4
   val serviceName = "SomeServiceName"
@@ -311,7 +311,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
     "log the initial state after creation" in {
 
       withCaptureOfLoggingFrom(logger) { logList =>
-        val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        new CircuitBreaker(defaultConfig, defaultExceptions) {
           override def getLogger = logger
         }
 
@@ -326,7 +326,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
     "log state information whenever state changes" in {
 
       withCaptureOfLoggingFrom(logger) { logList =>
-        val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        new CircuitBreaker(defaultConfig, defaultExceptions) {
           override def getLogger = logger
 
           setState(currentState, new Unavailable)
@@ -342,7 +342,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
     "should not log when the current state and old state are different" in {
 
       withCaptureOfLoggingFrom(logger) { logList =>
-        val cb = new CircuitBreaker(defaultConfig, defaultExceptions) {
+        new CircuitBreaker(defaultConfig, defaultExceptions) {
           override def getLogger = logger
 
           setState(new Unstable, new Unavailable)
