@@ -1,6 +1,6 @@
 # reactive-circuit-breaker
 
-[![Build Status](https://travis-ci.org/hmrc/reactive-circuit-breaker.svg?branch=master)](https://travis-ci.org/hmrc/reactive-circuit-breaker) [ ![Download](https://api.bintray.com/packages/hmrc/releases/reactive-circuit-breaker/images/download.svg) ](https://bintray.com/hmrc/releases/reactive-circuit-breaker/_latestVersion)
+![Build Status](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker) [ ![Download](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker) ](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker)
 
 Reactive Circuit Breaker is a library that maintains the state of an upstream resource's health through usage of upstream services rather than using a 'health check' call.
 Each 'connector' to an upstream service will need to mix in the `UsingCircuitBreaker` trait and configure its behaviour through implementing all abstract members of the trait.
@@ -25,7 +25,7 @@ For configuration details see the [scaladoc](src/main/scala/uk/gov/hmrc/circuitb
 ## Download reactive-circuit-breaker
 
 ```scala
-resolvers += Resolver.bintrayRepo("hmrc", "releases")
+resolvers += Resolver.typesafeRepo("releases")
 
 libraryDependencies += "uk.gov.hmrc" %% "reactive-circuit-breaker" % "x.x.x"
 ```
