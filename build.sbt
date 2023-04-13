@@ -19,7 +19,7 @@ val scala2_13 = "2.13.8"
 lazy val root =(project in file("."))
   .settings(
     name := "reactive-circuit-breaker",
-    majorVersion := 3,
+    majorVersion := 4,
     scalaVersion := scala2_12,
     crossScalaVersions := List(scala2_12, scala2_13),
     isPublicArtefact := true,
