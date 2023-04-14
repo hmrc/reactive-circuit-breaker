@@ -30,6 +30,12 @@ resolvers += Resolver.typesafeRepo("releases")
 libraryDependencies += "uk.gov.hmrc" %% "reactive-circuit-breaker" % "x.x.x"
 ```
 
+## Changelog
+
+### v4
+- Cross build of scala 2.13 introduced
+
+
 ## Future Enhancements
 
 * N/A
