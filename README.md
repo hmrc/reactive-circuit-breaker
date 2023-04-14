@@ -1,6 +1,6 @@
 # reactive-circuit-breaker
 
-![Build Status](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker) [ ![Download](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker) ](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker)
+![Build Status](https://img.shields.io/github/v/release/hmrc/reactive-circuit-breaker)
 
 Reactive Circuit Breaker is a library that maintains the state of an upstream resource's health through usage of upstream services rather than using a 'health check' call.
 Each 'connector' to an upstream service will need to mix in the `UsingCircuitBreaker` trait and configure its behaviour through implementing all abstract members of the trait.
