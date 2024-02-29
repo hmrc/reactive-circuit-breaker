@@ -20,7 +20,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.core.read.ListAppender
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.{Assertion, Matchers, WordSpecLike}
 import org.slf4j.LoggerFactory
 import uk.gov.hmrc.http.HeaderCarrier
 
@@ -59,8 +59,9 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
     "remain healthy after a successful call" in {
       val cb = new CircuitBreaker(defaultConfig, defaultExceptions)
-      whenReady(cb.invoke(successfulCall)) {
-        result =>
+
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)){
+        _ =>
           cb.currentState.name shouldBe "HEALTHY"
       }
     }
@@ -119,15 +120,15 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
       cb.invoke(failedCall).failed.futureValue
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "UNSTABLE"
       }
 
       cb.invoke(failedCall).failed.futureValue
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "UNSTABLE"
       }
 
@@ -149,7 +150,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
         override def initialState = new Unavailable
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
         _ =>
           cb.currentState.name shouldBe "TRIAL"
       }
@@ -169,8 +170,8 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
         override def initialState = new Trial
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "TRIAL"
       }
     }
@@ -180,26 +181,26 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
         override def initialState = new Trial
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "TRIAL"
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Unit](cb.invoke[Boolean](successfulCall)) {
+        _ =>
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "TRIAL"
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Unit](cb.invoke[Boolean](successfulCall)) {
+        _ =>
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "HEALTHY"
       }
     }
@@ -246,17 +247,17 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
         override def initialState = new Trial
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "TRIAL"
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Unit](cb.invoke[Boolean](successfulCall)) {
+        _ =>
       }
 
-      whenReady(cb.invoke[Boolean](successfulCall)) {
-        result =>
+      whenReady[Boolean, Assertion](cb.invoke[Boolean](successfulCall)) {
+        _ =>
           cb.currentState.name shouldBe "TRIAL"
       }
 

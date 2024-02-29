@@ -1,31 +1,18 @@
 import sbt.Resolver
 import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
+import SCoverageSettings._
 
-lazy val scoverageSettings = {
-  import scoverage.ScoverageKeys
-  Seq(
-    // Semicolon-separated list of regexs matching classes to exclude
-    ScoverageKeys.coverageExcludedPackages := """uk\.gov\.hmrc\.BuildInfo;.*\.Routes;.*\.RoutesPrefix;.*\.Reverse[^.]*""",
-    ScoverageKeys.coverageMinimum := 75.00,
-    ScoverageKeys.coverageFailOnMinimum := false,
-    ScoverageKeys.coverageHighlighting := true,
-    Test / parallelExecution := false
-  )
-}
-
-val scala2_12 = "2.12.12"
 val scala2_13 = "2.13.8"
 
-lazy val root =(project in file("."))
+ThisBuild / majorVersion     := 5
+ThisBuild / isPublicArtefact := true
+ThisBuild / scalaVersion     := scala2_13
+
+lazy val root = (project in file("."))
   .settings(
+    publish / skip := true,
     name := "reactive-circuit-breaker",
-    majorVersion := 4,
-    scalaVersion := scala2_12,
-    crossScalaVersions := List(scala2_12, scala2_13),
-    isPublicArtefact := true,
-    scoverageSettings,
-    resolvers ++= Seq(
-      Resolver.typesafeRepo("releases")
-    ),
     libraryDependencies ++= LibDependencies.compile ++ LibDependencies.test,
+    scoverageSettings
   )
+
