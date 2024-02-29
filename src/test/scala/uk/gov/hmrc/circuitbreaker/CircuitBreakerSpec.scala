@@ -19,7 +19,7 @@ package uk.gov.hmrc.circuitbreaker
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.core.read.ListAppender
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Assertion, Matchers, WordSpecLike}
 import org.slf4j.LoggerFactory
 import uk.gov.hmrc.http.HeaderCarrier
@@ -27,7 +27,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
 
-class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures with LogCapturing with IntegrationPatience {
+class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures with LogCapturing {
 
   private def successfulCall: Future[Boolean] = Future.successful(true)
 

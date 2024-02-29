@@ -11,7 +11,7 @@ ThisBuild / scalaVersion     := scala2_13
 lazy val library = (project in file("."))
   .settings(
     publish / skip := true,
-    scoverageSettings,
-    libraryDependencies := LibDependencies.compile ++ LibDependencies.test
+    libraryDependencies ++= LibDependencies.compile ++ LibDependencies.test
   )
+  .settings(scoverageSettings)
 

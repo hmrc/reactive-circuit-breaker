@@ -1,3 +1,5 @@
+import sbt.Keys.parallelExecution
+import sbt._
 object SCoverageSettings {
 
   lazy val scoverageSettings = {
@@ -7,7 +9,8 @@ object SCoverageSettings {
       ScoverageKeys.coverageExcludedPackages := """uk\.gov\.hmrc\.BuildInfo;.*\.Routes;.*\.RoutesPrefix;.*\.Reverse[^.]*""",
       ScoverageKeys.coverageMinimumStmtTotal := 75.00,
       ScoverageKeys.coverageFailOnMinimum := false,
-      ScoverageKeys.coverageHighlighting := true
+      ScoverageKeys.coverageHighlighting := true,
+        (Test / parallelExecution) := false
     )
   }
 }
