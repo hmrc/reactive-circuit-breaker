@@ -11,7 +11,10 @@ lazy val root = (project in file("."))
   .settings(
     name := "reactive-circuit-breaker",
     libraryDependencies ++= LibDependencies.compile ++ LibDependencies.test,
-    scoverageSettings
+    scoverageSettings,
+    resolvers ++= Seq(
+      Resolver.typesafeRepo("releases")
+    ),
   )
   .disablePlugins(JUnitXmlReportPlugin)
 
