@@ -1,11 +1,10 @@
 import uk.gov.hmrc.versioning.SbtGitVersioning.autoImport.majorVersion
 import SCoverageSettings._
 
-val scala2_13 = "2.13.12"
 
-ThisBuild / majorVersion     := 5
+ThisBuild / majorVersion     := 6
 ThisBuild / isPublicArtefact := true
-ThisBuild / scalaVersion     := scala2_13
+ThisBuild / scalaVersion     := "3.5.1"
 
 lazy val root = (project in file("."))
   .settings(

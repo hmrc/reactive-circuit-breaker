@@ -20,14 +20,16 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.core.read.ListAppender
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Assertion, Matchers, WordSpecLike}
+import org.scalatest.Assertion
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.slf4j.LoggerFactory
 import uk.gov.hmrc.http.HeaderCarrier
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters
 import scala.concurrent.Future
 
-class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures with LogCapturing {
+class CircuitBreakerSpec extends AnyWordSpec with Matchers with ScalaFutures with LogCapturing {
 
   private def successfulCall: Future[Boolean] = Future.successful(true)
 
@@ -35,7 +37,7 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 
   private def expectedFailure: Future[Boolean] = Future.failed(new ExpectedException)
 
-  implicit val hc = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
   val fiveMinutes: Int = 5 * 60 * 1000
   val fourCalls: Int = 4
   val serviceName = "SomeServiceName"
@@ -293,9 +295,12 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
     }
 
     "return true if circuit breaker is in Healthy, Unstable or Trial states" in {
-      val cb = new CircuitBreaker(CircuitBreakerConfig(serviceName, fourCalls, fiveMinutes, fiveMinutes), defaultExceptions) {
 
-        val states = List(Healthy, new Unstable, new Trial)
+      import scala.reflect.Selectable.reflectiveSelectable
+
+      val cb: CircuitBreaker{val states: List[StateProcessor]} = new CircuitBreaker(CircuitBreakerConfig(serviceName, fourCalls, fiveMinutes, fiveMinutes), defaultExceptions) {
+
+        val states: List[StateProcessor] = List(Healthy, new Unstable, new Trial)
       }
 
       cb.states.foreach { state =>
@@ -360,6 +365,8 @@ class CircuitBreakerSpec extends WordSpecLike with Matchers with ScalaFutures wi
 }
 
 trait LogCapturing {
+
+  import scala.jdk.CollectionConverters.ListHasAsScala
 
   def withCaptureOfLoggingFrom(logger: Logger)(body: (=> List[ILoggingEvent]) => Any): Any = {
     val appender = new ListAppender[ILoggingEvent]()
