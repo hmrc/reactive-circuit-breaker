@@ -32,6 +32,9 @@ libraryDependencies += "uk.gov.hmrc" %% "reactive-circuit-breaker" % "x.x.x"
 
 ## Changelog
 
+### v5
+- Scala 3
+
 ### v4
 - Cross build of scala 2.13 introduced
 

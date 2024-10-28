@@ -17,16 +17,17 @@
 package uk.gov.hmrc.circuitbreaker
 
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.Future
 
 
-class UsingCircuitBreakerSpec extends WordSpecLike with Matchers with Eventually with ScalaFutures {
+class UsingCircuitBreakerSpec extends AnyWordSpec with Matchers with Eventually with ScalaFutures {
 
   private def returnOk = Future.successful(true)
-  implicit val hc = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
   "WithCircuitBreaker" should {
     
     "return the function result when no exception is thrown" in new UsingCircuitBreaker {
